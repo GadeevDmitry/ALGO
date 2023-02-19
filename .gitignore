@@ -1,4 +1,6 @@
 *.html
 
-stack_on_list_test
-stack_test
+*_contest
+*_test
+
+TEST/
