@@ -21,6 +21,9 @@ a_test:
 b_contest:
 b_test:
 
+c_contest:
+c_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS) $^ -o $@
 %_test: %.cpp $(ALL_O)
