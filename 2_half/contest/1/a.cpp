@@ -61,7 +61,7 @@ int main()
     char str[100] = "\0";
     do
     {
-        if (scanf("%s", str) != 1)
+        if (scanf("%99s", str) != 1)
         {
             //log_error("Expected string input\n");
             //return 0;
