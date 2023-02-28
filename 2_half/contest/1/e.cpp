@@ -75,7 +75,7 @@ int is_correct_bracket_sequence(const char *str)
     struct stack_char stk /* = {} */;
     stack_char_ctor(&stk);
 
-    while (*str != '\0')
+    for (int i = 0; *str != '\0' && i < STR_SIZE; ++i, ++str)
     {
         switch (*str)
         {
@@ -94,7 +94,6 @@ int is_correct_bracket_sequence(const char *str)
             default:    //log_error("Undefined character int bracket sequence\n");
                         return 0;
         }
-        str++;
     }
 
     return stk.size == 0;    
