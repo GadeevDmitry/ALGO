@@ -27,6 +27,12 @@ c_test:
 d_contest:
 d_test:
 
+e_contest:
+e_test:
+
+f_contest:
+f_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS) $^ -o $@
 %_test: %.cpp $(ALL_O)
