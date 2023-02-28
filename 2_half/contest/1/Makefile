@@ -33,6 +33,9 @@ e_test:
 f_contest:
 f_test:
 
+g_contest:
+g_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS) $^ -o $@
 %_test: %.cpp $(ALL_O)
