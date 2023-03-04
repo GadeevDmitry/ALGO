@@ -39,6 +39,9 @@ g_test:
 i_contest:
 i_test:
 
+j_contest:
+j_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS) $^ -o $@
 %_test: %.cpp $(ALL_O)
