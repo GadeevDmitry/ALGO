@@ -1,4 +1,5 @@
 *.html
+out.txt
 
 *_contest
 *_test
