@@ -51,6 +51,9 @@ k_test:
 n_contest:
 n_test:
 
+q_contest:
+q_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS) $^ -o $@
 %_test: %.cpp $(ALL_O)
