@@ -1,9 +1,9 @@
 #ifndef STACK_TEST_H
 #define STACK_TEST_H
 
-#include "../../../../lib/logs/log.h"
-#include "../../../../lib/algorithm/algorithm.h"
-#include "../../../../lib/stack/stack.h"
+#include "../../../lib/logs/log.h"
+#include "../../../lib/algorithm/algorithm.h"
+#include "../../../lib/stack/stack.h"
 
 typedef int stk_el_type;
 

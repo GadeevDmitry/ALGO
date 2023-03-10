@@ -1,9 +1,9 @@
 #ifndef STACK_ON_LIST_H
 #define STACK_ON_LIST_H
 
-#include "../../../../lib/logs/log.h"
-#include "../../../../lib/algorithm/algorithm.h"
-#include "../../../../lib/list/list.h"
+#include "../../../lib/logs/log.h"
+#include "../../../lib/algorithm/algorithm.h"
+#include "../../../lib/list/list.h"
 
 //================================================================================================================================
 // DSL

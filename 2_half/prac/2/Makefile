@@ -13,10 +13,10 @@ stack_test.o: stack_test.h
 
 #-------------------------------------------------------------------------------------------
 
-LOG_O = ../../../../lib/logs/log.o
-ALG_O = ../../../../lib/algorithm/algorithm.o
-STK_O = ../../../../lib/stack/stack.o
-LST_O = ../../../../lib/list/list.o
+LOG_O = ../../../lib/logs/log.o
+ALG_O = ../../../lib/algorithm/algorithm.o
+STK_O = ../../../lib/stack/stack.o
+LST_O = ../../../lib/list/list.o
 
 #-------------------------------------------------------------------------------------------
 
