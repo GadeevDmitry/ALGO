@@ -1,0 +1,11 @@
+set terminal png
+set output "../result/plot.png"
+
+set datafile separator "|"
+set grid
+
+set xrange[1000:100000]
+set xlabel "array size"
+set ylabel "time, ms"
+
+plot "../data/quadratic.txt" using 1:2 with lines title "bubble", "../data/quadratic.txt" using 1:3 with lines title "insert", "../data/quadratic.txt" using 1:4 with lines title "choose"
