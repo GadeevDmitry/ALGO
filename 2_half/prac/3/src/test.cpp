@@ -19,10 +19,9 @@ const char *DAT_FILENAME = "../data/data.txt";
 const char *GPI_FILENAME = "plot.gpi";
 const char *PNG_FILENAME = "../result/plot.png";
 
-const int   TEST_NUM  = 5;   // число тестов для усреднения
-
+const int   TEST_NUM  = 5;          // число тестов для усреднения
 const int   TEST_MIN  = 1'000;
-const int   TEST_MAX  = 10'000'000;
+const int   TEST_MAX  = 2'000'000;
 const int   TEST_STEP = 100'000;
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -64,24 +63,24 @@ bool run_test_frame(int *const arr_original, const int n, FILE *const out_stream
         return false;
     }
 
-    double times[3] = {};
-
-    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    times[0] = run_test(arr_to_sort , n, sort_by_median_of_three);
-
-    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    times[1] = run_test(arr_to_sort , n, sort_by_central);
-
-    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    times[2] = run_test(arr_to_sort,  n, sort_by_rand);
+    double times[1] = {};
 
     //memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    //times[3] = run_test(arr_to_sort , n, sort_by_median_of_medians);
+    //times[0] = run_test(arr_to_sort , n, sort_by_median_of_three);
+
+    //memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
+    //times[1] = run_test(arr_to_sort , n, sort_by_central);
+
+    //memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
+    //times[2] = run_test(arr_to_sort,  n, sort_by_rand);
+
+    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
+    times[0] = run_test(arr_to_sort , n, sort_by_median_of_medians);
 
     log_message(HTML_COLOR_LIME_GREEN "test success: n = %lu\n" HTML_COLOR_CANCEL, n);
     log_free   (arr_to_sort);
 
-    save_data_frame(times, 3, n, out_stream);
+    save_data_frame(times, 1, n, out_stream);
     return true;
 }
 
@@ -174,12 +173,7 @@ bool make_gpi(const int x_min, const int x_max)
                         "set xlabel \"Array size\"\n"
                         "set ylabel \"time, ms\"\n\n"   , x_min, x_max);
 
-    fprintf(gpi_stream, "plot \"%s\" using 1:2 with lines title \"median of three\", "
-                             "\"%s\" using 1:3 with lines title \"central\", "
-                             "\"%s\" using 1:4 with lines title \"rand\"\n",
-                                                                                    DAT_FILENAME,
-                                                                                    DAT_FILENAME,
-                                                                                    DAT_FILENAME);
+    fprintf(gpi_stream, "plot \"%s\" using 1:2 with lines title \"median of medians\"\n", DAT_FILENAME);
 
     fclose(gpi_stream);
     return true;
