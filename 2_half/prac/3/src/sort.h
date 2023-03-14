@@ -1,9 +1,6 @@
 #ifndef SORT_H
 #define SORT_H
 
-#include "../../../../lib/logs/log.h"
-#include "../../../../lib/algorithm/algorithm.h"
-
 //================================================================================================================================
 // FUNCTION DECLARATION
 //================================================================================================================================
@@ -12,9 +9,18 @@
 // sort
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void bubble_sort(int *const arr, const size_t n);
-void insert_sort(int *const arr, const size_t n);
-void choose_sort(int *const arr, const size_t n);
+void bubble_sort(int *const arr, const int n);
+void insert_sort(int *const arr, const int n);
+void choose_sort(int *const arr, const int n);
+//--------------------------------------------------------------------------------------------------------------------------------
+void quick_sort      (int *const arr, const int n, int (*get_pivot) (int *, int));
+int  quick_sort_frame(int *const arr, const int n, int (*get_pivot) (int *, int));
+
+int  get_pivot_by_median_of_three  (int *const arr, const int n);
+int  get_pivot_by_central          (int *const arr, const int n);
+int  get_pivot_by_rand             (int *const arr, const int n);
+int  get_pivot_by_median_of_medians(int *const arr, const int n);
+int  kth_element                   (int *const arr, const int n, const int k);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // swap

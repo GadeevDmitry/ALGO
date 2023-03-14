@@ -5,6 +5,9 @@
 #include <ctype.h>
 #include <time.h>
 
+#include "../../../../lib/logs/log.h"
+#include "../../../../lib/algorithm/algorithm.h"
+
 #include "sort.h"
 #include "test.h"
 
