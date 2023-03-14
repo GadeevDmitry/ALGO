@@ -121,6 +121,14 @@ int quick_sort_frame(int *const arr, const int n, int (*get_pivot) (int *, int))
 // median_of_three
 //--------------------------------------------------------------------------------------------------------------------------------
 
+void sort_by_median_of_three(int *const arr, const int n)
+{
+    //log_verify(arr != nullptr, ;);
+    //log_verify(n >= 0, ;);
+
+    quick_sort(arr, n, get_pivot_by_median_of_three);
+}
+
 int get_pivot_by_median_of_three(int *const arr, const int n)
 {
     //log_assert(arr != nullptr);
@@ -139,6 +147,14 @@ int get_pivot_by_median_of_three(int *const arr, const int n)
 // central
 //--------------------------------------------------------------------------------------------------------------------------------
 
+void sort_by_central(int *const arr, const int n)
+{
+    //log_verify(arr != nullptr, ;);
+    //log_verify(n >= 0, ;);
+
+    quick_sort(arr, n, get_pivot_by_central);
+}
+
 int get_pivot_by_central(int *const arr, const int n)
 {
     //log_assert(arr != nullptr);
@@ -150,6 +166,14 @@ int get_pivot_by_central(int *const arr, const int n)
 //--------------------------------------------------------------------------------------------------------------------------------
 // rand
 //--------------------------------------------------------------------------------------------------------------------------------
+
+void sort_by_rand(int *const arr, const int n)
+{
+    //log_verify(arr != nullptr, ;);
+    //log_verify(n >= 0, ;);
+
+    quick_sort(arr, n, get_pivot_by_rand);
+}
 
 int get_pivot_by_rand(int *const arr, const int n)
 {
@@ -163,6 +187,13 @@ int get_pivot_by_rand(int *const arr, const int n)
 // median of medians
 //--------------------------------------------------------------------------------------------------------------------------------
 
+void sort_by_median_of_medians(int *const arr, const int n)
+{
+    //log_verify(arr != nullptr, ;);
+    //log_verify(n >= 0, ;);
+
+    quick_sort(arr, n, get_pivot_by_median_of_medians);
+}
 
 int get_pivot_by_median_of_medians(int *const arr, const int n)
 {

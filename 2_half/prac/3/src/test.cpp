@@ -19,7 +19,11 @@ const char *DAT_FILENAME = "../data/data.txt";
 const char *GPI_FILENAME = "plot.gpi";
 const char *PNG_FILENAME = "../result/plot.png";
 
-const int   NUM_TEST = 5;
+const int   TEST_NUM  = 5;   // число тестов для усреднения
+
+const int   TEST_MIN  = 1'000;
+const int   TEST_MAX  = 10'000'000;
+const int   TEST_STEP = 100'000;
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // MAIN
@@ -30,7 +34,7 @@ int main()
     FILE *const dat_stream = open_data_file();
     if         (dat_stream == nullptr) return 0;
 
-    for (size_t n = 1'000; n <= 100'000; n += 10'000)
+    for (int n = TEST_MIN; n <= TEST_MAX; n += TEST_STEP)
     {
         int *arr_original = gen_test(n);
         if  (arr_original == nullptr)                     { fclose(dat_stream); return 0; }
@@ -39,7 +43,7 @@ int main()
         log_free(arr_original);
     }
 
-    make_gpi(1'000, 100'000);
+    make_gpi(TEST_MIN, TEST_MAX);
 
     fclose(dat_stream);
 }
@@ -48,12 +52,12 @@ int main()
 // RUN
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool run_test_frame(int *const arr_original, const size_t n, FILE *const out_stream)
+bool run_test_frame(int *const arr_original, const int n, FILE *const out_stream)
 {
     log_assert(arr_original != nullptr);
     log_assert(out_stream   != nullptr);
 
-    int *arr_to_sort = (int *) log_calloc(n, sizeof(int));
+    int *arr_to_sort = (int *) log_calloc((size_t) n, sizeof(int));
     if  (arr_to_sort == nullptr)
     {
         log_error("log_calloc(n = %lu, sizeof(int) = %lu) returns nullptr\n", n, sizeof(int));
@@ -62,14 +66,17 @@ bool run_test_frame(int *const arr_original, const size_t n, FILE *const out_str
 
     double times[3] = {};
 
-    memcpy(arr_to_sort, arr_original, n * sizeof(int));
-    times[0] = run_test(arr_to_sort, n, bubble_sort);
+    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
+    times[0] = run_test(arr_to_sort , n, sort_by_median_of_three);
 
-    memcpy(arr_to_sort, arr_original, n * sizeof(int));
-    times[1] = run_test(arr_to_sort, n, insert_sort);
+    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
+    times[1] = run_test(arr_to_sort , n, sort_by_central);
 
-    memcpy(arr_to_sort, arr_original, n * sizeof(int));
-    times[2] = run_test(arr_to_sort, n, choose_sort);
+    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
+    times[2] = run_test(arr_to_sort,  n, sort_by_rand);
+
+    //memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
+    //times[3] = run_test(arr_to_sort , n, sort_by_median_of_medians);
 
     log_message(HTML_COLOR_LIME_GREEN "test success: n = %lu\n" HTML_COLOR_CANCEL, n);
     log_free   (arr_to_sort);
@@ -80,14 +87,14 @@ bool run_test_frame(int *const arr_original, const size_t n, FILE *const out_str
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-double run_test(int *const arr, const size_t n, void (*sort) (int *, size_t))
+double run_test(int *const arr, const int n, void (*sort) (int *, int))
 {
     log_assert(arr  != nullptr);
     log_assert(sort != nullptr);
 
     time_t work_time = 0;
 
-    for (int i = 0; i < NUM_TEST; ++i)
+    for (int i = 0; i < TEST_NUM; ++i)
     {
         time_t start_time  = clock();
         (*sort) (arr, n);
@@ -96,23 +103,23 @@ double run_test(int *const arr, const size_t n, void (*sort) (int *, size_t))
         work_time += finish_time - start_time;
     }
 
-    return (1000.0 * work_time / 5.0) / CLOCKS_PER_SEC;
+    return (1000.0 * (double) work_time / (double) TEST_NUM) / CLOCKS_PER_SEC;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // TEST_GEN
 //--------------------------------------------------------------------------------------------------------------------------------
 
-int *gen_test(const size_t n)
+int *gen_test(const int n)
 {
-    int *arr = (int *) log_calloc(n, sizeof(int));
+    int *arr = (int *) log_calloc((size_t) n, sizeof(int));
     if  (arr == nullptr)
     {
         log_error("log_calloc(n = %lu, sizeof(int) = %lu) returns nullptr\n", n, sizeof(int));
         return nullptr;
     }
 
-    for (size_t i = 0; i < n; ++i) { arr[i] = rand(); }
+    for (int i = 0; i < n; ++i) { arr[i] = rand(); }
 
     return arr;
 }
@@ -134,14 +141,14 @@ FILE *open_data_file()
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void save_data_frame(const double *const data_frame, const size_t frame_size, const size_t elem_num, FILE *const dat_stream)
+void save_data_frame(const double *const data_frame, const int frame_size, const int elem_num, FILE *const dat_stream)
 {
     log_assert(data_frame != nullptr);
     log_assert(dat_stream != nullptr);
 
-    fprintf(dat_stream, "%10lu | ", elem_num);
+    fprintf(dat_stream, "%10d | ", elem_num);
 
-    for (size_t i = 0; i < frame_size; ++i) { fprintf(dat_stream, "%15.5lf | ", data_frame[i]); }
+    for (int i = 0; i < frame_size; ++i) { fprintf(dat_stream, "%15.5lf | ", data_frame[i]); }
     putc('\n', dat_stream);
 }
 
@@ -167,9 +174,12 @@ bool make_gpi(const int x_min, const int x_max)
                         "set xlabel \"Array size\"\n"
                         "set ylabel \"time, ms\"\n\n"   , x_min, x_max);
 
-    fprintf(gpi_stream, "plot \"%s\" using 1:2 with lines title \"bubble\", "
-                             "\"%s\" using 1:3 with lines title \"insert\", "
-                             "\"%s\" using 1:4 with lines title \"choose\"\n", DAT_FILENAME, DAT_FILENAME, DAT_FILENAME);
+    fprintf(gpi_stream, "plot \"%s\" using 1:2 with lines title \"median of three\", "
+                             "\"%s\" using 1:3 with lines title \"central\", "
+                             "\"%s\" using 1:4 with lines title \"rand\"\n",
+                                                                                    DAT_FILENAME,
+                                                                                    DAT_FILENAME,
+                                                                                    DAT_FILENAME);
 
     fclose(gpi_stream);
     return true;

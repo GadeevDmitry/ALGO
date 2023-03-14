@@ -11,21 +11,21 @@
 // RUN
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool   run_test_frame(int *const arr_original, const size_t n, FILE *const dat_stream);
-double run_test      (int *const arr         , const size_t n, void (*sort) (int *, size_t));
+bool   run_test_frame(int *const arr_original, const int n, FILE *const dat_stream);
+double run_test      (int *const arr         , const int n, void (*sort) (int *, int));
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // TEST_GEN
 //--------------------------------------------------------------------------------------------------------------------------------
 
-int *gen_test(const size_t n);
+int *gen_test(const int n);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // DATA
 //--------------------------------------------------------------------------------------------------------------------------------
 
 FILE *open_data_file ();
-void  save_data_frame(const double *const data_frame, const size_t frame_size, const size_t elem_num, FILE *const out_stream);
+void  save_data_frame(const double *const data_frame, const int frame_size, const int elem_num, FILE *const out_stream);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // PLOT
