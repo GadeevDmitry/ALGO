@@ -65,6 +65,55 @@ void choose_sort(int *const arr, const int n)
 }
 
 //================================================================================================================================
+// MERGE SORT
+//================================================================================================================================
+
+void merge_sort(int *const arr, const int n)
+{
+    //log_assert(arr != nullptr);
+
+    if (n <= 1) return;
+
+    int mid = n / 2;
+    merge_sort(arr      ,     mid);
+    merge_sort(arr + mid, n - mid);
+
+    merge(arr, n);
+}
+
+void merge(int *const arr, const int n)
+{
+    //log_assert(arr != nullptr);
+    //log_assert(n > 1);
+
+    int *const sorted = (int *) log_calloc((size_t) n, sizeof(int));
+    /*
+    if        (sorted == nullptr)
+    {
+        log_error("log_calloc((size_t) n = %lu, sizeof(int) = %lu) returns nullptr\n", n, sizeof(int));
+        return;
+    }
+    */
+
+    int l_cnt =     0, l_max = n / 2;
+    int r_cnt = n / 2, r_max =     n;
+
+    for (int i = 0; i < n; ++i)
+    {
+        if      (l_cnt == l_max) { sorted[i] = arr[r_cnt]; ++r_cnt; }
+        else if (r_cnt == r_max) { sorted[i] = arr[l_cnt]; ++l_cnt; }
+        else
+        {
+            if (arr[l_cnt] < arr[r_cnt]) { sorted[i] = arr[l_cnt]; ++l_cnt; }
+            else                         { sorted[i] = arr[r_cnt]; ++r_cnt; }
+        }
+    }
+
+    memcpy(arr, sorted, (size_t) n * sizeof(int));
+    log_free(sorted);
+}
+
+//================================================================================================================================
 // QUICK SORT
 //================================================================================================================================
 

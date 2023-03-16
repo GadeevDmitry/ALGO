@@ -13,6 +13,9 @@ void bubble_sort(int *const arr, const int n);
 void insert_sort(int *const arr, const int n);
 void choose_sort(int *const arr, const int n);
 //--------------------------------------------------------------------------------------------------------------------------------
+void merge_sort(int *const arr, const int n);
+void merge     (int *const arr, const int n);
+//--------------------------------------------------------------------------------------------------------------------------------
 void quick_sort                    (int *const arr, const int n, int (*get_pivot) (int *, int));
 int  quick_sort_frame              (int *const arr, const int n, int (*get_pivot) (int *, int));
 
