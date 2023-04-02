@@ -43,8 +43,8 @@ bool bin_heap_ctor(binary_heap *const hp, const int capacity)
         return false;
     }
 
-    $capacity = capacity;
-    $size     =        0;
+    $capacity = capacity + 1;
+    $size     =            1;
 
     return true;
 }
@@ -63,10 +63,10 @@ bool bin_heap_insert(binary_heap *const hp, const int val)
     log_verify(hp != nullptr    , false);
     log_verify($size < $capacity, false);
 
-    $size++;
     $data[$size] = val;
+    $size++;
 
-    return bin_heap_sift_up(hp, $size);
+    return bin_heap_sift_up(hp, $size - 1);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -74,7 +74,7 @@ bool bin_heap_insert(binary_heap *const hp, const int val)
 int bin_heap_get_min(binary_heap *const hp)
 {
     log_verify(hp    != nullptr, 0);
-    log_verify($size !=       0, 0);
+    log_verify($size >        0, 0);
 
     return $data[1];
 }
@@ -82,10 +82,10 @@ int bin_heap_get_min(binary_heap *const hp)
 int bin_heap_extract_min(binary_heap *const hp)
 {
     log_verify(hp    != nullptr, 0);
-    log_verify($size !=       0, 0);
+    log_verify($size >        0, 0);
 
     int ans = $data[1];
-    int_swap ($data + 1, $data + $size);
+    int_swap ($data + 1, $data + $size - 1);
     $size--;
 
     if ($size == 0) return true;
@@ -111,9 +111,9 @@ bool bin_heap_sort(binary_heap *const hp, int *const arr, const int arr_size)
 
 static bool bin_heap_sift_up(binary_heap *const hp, const int ind)
 {
-    log_verify(hp  !=     nullptr, false);
-    log_verify(ind >            0, false);
-    log_verify(ind <= (int) $size, false);
+    log_verify(hp  != nullptr, false);
+    log_verify(ind >        0, false);
+    log_verify(ind <=   $size, false);
 
     if (ind == 1) return true;
 
@@ -123,18 +123,17 @@ static bool bin_heap_sift_up(binary_heap *const hp, const int ind)
         int_swap($data + par_ind, $data + ind);
         return bin_heap_sift_up  (hp, par_ind);
     }
-
     return true;
 }
 
 static bool bin_heap_sift_down(binary_heap *const hp, const int ind)
 {
-    log_verify(hp !=      nullptr, false);
-    log_verify(ind >            0, false);
-    log_verify(ind <= (int) $size, false);
+    log_verify(hp != nullptr, false);
+    log_verify(ind >       0, false);
+    log_verify(ind <=  $size, false);
 
-    int left  = (2*ind     >= $size) ? 0 : $data[2*ind];
-    int right = (2*ind + 1 >= $size) ? 0 : $data[2*ind + 1];
+    int left  = (2*ind     >= $size) ? (int) 2e9 : $data[2*ind];
+    int right = (2*ind + 1 >= $size) ? (int) 2e9 : $data[2*ind + 1];
 
     if      (left  < $data[ind] && left  <= right) { int_swap($data + 2*ind    , $data + ind); return bin_heap_sift_down(hp, 2*ind    ); }
     else if (right < $data[ind]                  ) { int_swap($data + 2*ind + 1, $data + ind); return bin_heap_sift_down(hp, 2*ind + 1); }

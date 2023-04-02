@@ -92,7 +92,7 @@ int k_heap_extract_min(k_heap *const hp)
     int_swap ($data, $data + $size - 1);
     $size--;
 
-    if ($size == 0) return true;
+    if ($size == 0) return ans;
 
     k_heap_sift_down(hp, 0);
     return ans;
