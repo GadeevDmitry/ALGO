@@ -4,7 +4,9 @@
 #include "ctype.h"
 #include "math.h"
 
+#define LOG_NVERIFY
 #include "../../../../lib/logs/log.h"
+
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // function declaration
@@ -14,6 +16,8 @@
 
 static bool k_heap_sift_up  (k_heap *const hp, const int ind);
 static bool k_heap_sift_down(k_heap *const hp, const int ind);
+
+static void int_swap(int *const a, int *const b);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // dsl
@@ -28,17 +32,17 @@ static bool k_heap_sift_down(k_heap *const hp, const int ind);
 // body
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool k_heap_ctor(k_heap *const hp, const int k, const size_t capacity)
+bool k_heap_ctor(k_heap *const hp, const int k, const int capacity)
 {
     log_verify(hp != nullptr, false);
     log_verify(k        > 0 , false);
     log_verify(capacity > 0 , false);
 
-    $data = (int *) log_calloc(capacity, sizeof(int));
+    $data = (int *) log_calloc((size_t) capacity, sizeof(int));
     if ($data == nullptr)
     {
         log_error("Can't allocate memory for k_heap.data:\n"
-                  "log_calloc(capacity = %lu, sizeof(int) = %lu) returns nullptr\n", capacity, sizeof(int));
+                  "log_calloc((size_t) capacity = %lu, sizeof(int) = %lu) returns nullptr\n", (size_t) capacity, sizeof(int));
         return false;
     }
 
@@ -160,7 +164,7 @@ static void int_swap(int *const a, int *const b)
     log_verify(a != nullptr, ;);
     log_verify(b != nullptr, ;);
 
-    unsigned temp = *a;
+    int temp = *a;
     *a =   *b;
     *b = temp;
 }

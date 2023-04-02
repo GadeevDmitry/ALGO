@@ -6,11 +6,11 @@ struct k_heap
     int     k;
     int *data;
 
-    size_t     size;
-    size_t capacity;
+    int     size;
+    int capacity;
 };
 
-bool k_heap_ctor(k_heap *const hp, const int k, const size_t capacity);
+bool k_heap_ctor(k_heap *const hp, const int k, const int capacity);
 void k_heap_dtor(k_heap *const hp);
 
 bool k_heap_insert     (k_heap *const hp, const int val);
