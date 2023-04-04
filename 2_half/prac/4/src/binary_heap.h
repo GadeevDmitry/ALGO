@@ -10,6 +10,7 @@ struct binary_heap
 };
 
 bool bin_heap_ctor(binary_heap *const hp, const int capacity);
+bool bin_heap_ctor(binary_heap *const hp, const int capacity, int *const data);
 void bin_heap_dtor(binary_heap *const hp);
 
 bool bin_heap_insert     (binary_heap *const hp, const int val);

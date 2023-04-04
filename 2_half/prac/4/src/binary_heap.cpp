@@ -49,6 +49,19 @@ bool bin_heap_ctor(binary_heap *const hp, const int capacity)
     return true;
 }
 
+bool bin_heap_ctor(binary_heap *const hp, const int capacity, int *const data)
+{
+    log_verify(hp   != nullptr, false);
+    log_verify(data != nullptr, false);
+
+    $data = data;
+
+    $capacity = capacity + 1 /* fictional */;
+    $size     =            1 /* fictioanl */;
+
+    return true;
+}
+
 void bin_heap_dtor(binary_heap *const hp)
 {
     if (hp == nullptr) return;
