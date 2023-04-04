@@ -36,12 +36,8 @@ bool bin_heap_ctor(binary_heap *const hp, const int capacity)
     log_verify(capacity > 0 , false);
 
     $data = (int *) log_calloc((size_t) capacity + 1 /* fictional */, sizeof(int));
-    if ($data == nullptr)
-    {
-        log_error("Can't allocate memory for binary_heap.data:\n"
-                  "log_calloc((size_t) capacity + 1 (fictional) = %lu, sizeof(int) = %lu) returns nullptr\n", (size_t) capacity + 1, sizeof(int));
-        return false;
-    }
+
+    log_verify($data != nullptr, false);
 
     $capacity = capacity + 1;
     $size     =            1;

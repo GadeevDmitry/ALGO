@@ -7,7 +7,6 @@
 #define LOG_NVERIFY
 #include "../../../../lib/logs/log.h"
 
-
 //--------------------------------------------------------------------------------------------------------------------------------
 // function declaration
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -39,12 +38,8 @@ bool k_heap_ctor(k_heap *const hp, const int k, const int capacity)
     log_verify(capacity > 0 , false);
 
     $data = (int *) log_calloc((size_t) capacity, sizeof(int));
-    if ($data == nullptr)
-    {
-        log_error("Can't allocate memory for k_heap.data:\n"
-                  "log_calloc((size_t) capacity = %lu, sizeof(int) = %lu) returns nullptr\n", (size_t) capacity, sizeof(int));
-        return false;
-    }
+
+    log_verify($data != nullptr, false);
 
     $k        = k;
     $capacity = capacity;
@@ -85,8 +80,8 @@ int k_heap_get_min(k_heap *const hp)
 
 int k_heap_extract_min(k_heap *const hp)
 {
-    log_verify(hp    != nullptr, false);
-    log_verify($size !=       0, false);
+    log_verify(hp    != nullptr, 0);
+    log_verify($size !=       0, 0);
 
     int ans = $data[0];
     int_swap ($data, $data + $size - 1);
