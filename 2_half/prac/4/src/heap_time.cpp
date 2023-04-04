@@ -6,8 +6,9 @@
 #define LOG_NDEBUG
 #include "../../../../lib/logs/log.h"
 
-#include "binary_heap.h"
 #include "k_heap.h"
+#include "binary_heap.h"
+#include "k_optimized_heap.h"
 
 #include "heap_time.h"
 
@@ -15,12 +16,12 @@ static const char *DAT_FILENAME = "../data/data.txt";
 static const char *GPI_FILENAME = "plot.gpi";
 static const char *PNG_FILENAME = "../result/plot.png";
 
-static const int   TEST_NUM    = 5;        // число тестов для усреднения
-static const int   TEST_MIN    =   1'000;
-static const int   TEST_MAX    = 100'000;
-static const int   TEST_STEP   =   1'000;
+static const int   TEST_NUM     = 5;        // число тестов для усреднения
+static const int   TEST_MIN     =   1'000;
+static const int   TEST_MAX     = 100'000;
+static const int   TEST_STEP    =   1'000;
 
-static const int   HP_K_PARAM  = 5;        // праметр k k-ичной кучи
+static const int   HP_K_PARAM   = 5;        // праметр k k-ичной кучи
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // MAIN
@@ -28,6 +29,30 @@ static const int   HP_K_PARAM  = 5;        // праметр k k-ичной ку
 
 int main()
 {
+    int arr[9] = { 40, 89, 93, 4, 17, 53, 51, 47, 8 };
+    test_heap_sort(arr, 9, false);
+
+    /*
+    for (int arr_size = 2; arr_size <= 10; ++arr_size) {
+    for (int iter     = 0; iter     < 100; ++iter    )
+        {
+            int *arr_origin = gen_test(arr_size);
+            int *arr_sorted = (int *) log_calloc((size_t) arr_size, sizeof(int));
+            memcpy(arr_sorted, arr_origin, (size_t) arr_size * sizeof(int));
+
+            test_heap_sort(arr_sorted, arr_size, false);
+
+            for (int i = 1; i < arr_size; ++i) if (arr_sorted[i] < arr_sorted[i - 1])
+                                                {
+                                                    dump_wrong_test(arr_origin, arr_sorted, arr_size);
+                                                    return 0;
+                                                }
+            log_free(arr_origin);
+            log_free(arr_sorted);
+        }
+    }
+    */
+    /*
     FILE *const dat_stream = open_data_file();
     if         (dat_stream == nullptr) return 0;
 
@@ -43,6 +68,7 @@ int main()
     make_gpi(TEST_MIN, TEST_MAX);
 
     fclose(dat_stream);
+    */
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -134,11 +160,6 @@ void test_heap_sort(int *const arr, const int arr_size, bool is_binary)
     log_verify(arr != nullptr, (void) 0);
     log_verify(arr_size > 0,   (void) 0);
 
-    log_message(HTML_COLOR_MEDIUM_BLUE "original:\n" HTML_COLOR_CANCEL);
-    log_message(HTML_COLOR_DARK_RED);
-    for (int i = 0; i < arr_size; ++i) log_message("%d ", arr[i]);
-    log_message(HTML_COLOR_CANCEL "\n");
-
     if (is_binary)
     {
         binary_heap hp = {};
@@ -149,19 +170,26 @@ void test_heap_sort(int *const arr, const int arr_size, bool is_binary)
     }
     else
     {
-        k_heap hp = {};
+        k_optimized_heap hp = {};
 
-        k_heap_ctor(&hp, HP_K_PARAM, arr_size);
-        k_heap_sort(&hp, arr       , arr_size);
-        k_heap_dtor(&hp);
+        k_optimized_heap_ctor(&hp, HP_K_PARAM, arr_size);
+        k_optimized_heap_sort(&hp, arr       , arr_size);
+        k_optimized_heap_dtor(&hp);
     }
+}
 
-    log_message(HTML_COLOR_MEDIUM_BLUE "sorted:\n" HTML_COLOR_CANCEL);
-    log_message(HTML_COLOR_LIME_GREEN);
-    for (int i = 0; i < arr_size; ++i) log_message("%d ", arr[i]);
-    log_message(HTML_COLOR_CANCEL "\n");
+void dump_wrong_test(const int *arr_original, const int *arr_sorted, const int arr_size)
+{
+    log_tab_message(HTML_COLOR_MEDIUM_BLUE "original:\n" HTML_COLOR_CANCEL);
+    log_message    (HTML_COLOR_DARK_ORANGE);
+    for (int i = 0; i < arr_size; ++i) log_message("%d ", arr_original[i]);
+    log_tab_message(HTML_COLOR_CANCEL "\n");
 
-    log_free(arr);
+    log_tab_message(HTML_COLOR_MEDIUM_BLUE "sorted:\n" HTML_COLOR_CANCEL);
+    log_message    (HTML_COLOR_DARK_RED);
+    for (int i = 0; i < arr_size; ++i) log_message("%d ", arr_sorted[i]);
+    log_tab_message(HTML_COLOR_CANCEL "\n");
+
 }
 
 int *gen_test(const int n)

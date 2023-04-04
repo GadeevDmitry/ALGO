@@ -13,8 +13,9 @@ double run_k_heap  (int *const arr         , const int arr_size);
 // TEST
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void test_heap_sort(int *const arr, const int arr_size, bool is_binary);
-int *gen_test      (const int n);
+void test_heap_sort (int *const arr, const int arr_size, bool is_binary);
+void dump_wrong_test(const int *arr_original, const int *arr_sorted, const int arr_size);
+int *gen_test       (const int n);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // plot
