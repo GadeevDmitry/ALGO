@@ -4,9 +4,8 @@
 #include "ctype.h"
 #include "math.h"
 
+#define NLOG
 #define LOG_NVERIFY
-#define COMMA ,
-
 #include "../../../../lib/logs/log.h"
 
 #include "k_optimized_heap.h"
@@ -14,7 +13,38 @@
 // STATIC GLOBAL
 //================================================================================================================================
 
-const int INF = (int) 2e9;
+#define COMMA ,
+
+static const int INF = (int) 2e9;
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// binary_optimize
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static bool binary_optimize_ctor(binary_optimize *const hp, const int capacity, bin_kth_node *const bin_data,
+                                                                                bin_kth_node *const kth_data);
+//--------------------------------------------------------------------------------------------------------------------------------
+static bool binary_optimize_insert    (binary_optimize *const hp, const int key,     const int kth_pos);
+static bool binary_optimize_update_key(binary_optimize *const hp, const int bin_pos, const int new_key);
+//--------------------------------------------------------------------------------------------------------------------------------
+static bin_kth_node binary_optimize_get_min    (binary_optimize *const hp);
+static bin_kth_node binary_optimize_extract_min(binary_optimize *const hp);
+//--------------------------------------------------------------------------------------------------------------------------------
+static bool binary_optimize_sift_up  (binary_optimize *const hp, const int bin_pos);
+static bool binary_optimize_sift_down(binary_optimize *const hp, const int bin_pos);
+//--------------------------------------------------------------------------------------------------------------------------------
+static void binary_optimize_dump         (binary_optimize *const hp);
+static void binary_optimize_bin_data_dump(binary_optimize *const hp);
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// kth_optimized_heap
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static bool kth_optimized_heap_sift_up  (kth_optimized_heap *const hp, const int kth_pos);
+static bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_pos);
+//--------------------------------------------------------------------------------------------------------------------------------
+static void kth_optimized_heap_data_dump(kth_optimized_heap *const hp);
+static void kth_optimized_heap_unit_dump(kth_optimized_heap *const hp);
 
 //================================================================================================================================
 // DSL
@@ -77,17 +107,19 @@ bool kth_optimized_heap_ctor(kth_optimized_heap *const hp, const int k, const in
         binary_optimize_ctor($bin_hp + i, k, bin_hp_data + data_offset, $data);
         data_offset += k;
     }
+
+    return true;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void kth_optimazed_heap_dtor(kth_optimized_heap *const hp)
+void kth_optimized_heap_dtor(kth_optimized_heap *const hp)
 {
     if (hp == nullptr) return;
 
     log_free($data);
-    log_free($bin_hp);
     log_free($bin_hp->bin_data);
+    log_free($bin_hp);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -100,7 +132,7 @@ bool kth_optimized_heap_insert(kth_optimized_heap *const hp, const int key)
     log_verify($size < $capacity, false);
 
     $data[$size].key = key; $size++;
-    if   ($size == 1) { return true; }
+    if   ($size == 1) return true;
 
     int bin_hp_unit_ind = ($size - 2) / $k;
     binary_optimize_insert($bin_hp + bin_hp_unit_ind, key, $size - 1);
@@ -110,10 +142,12 @@ bool kth_optimized_heap_insert(kth_optimized_heap *const hp, const int key)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool kth_optimized_heap_sort(kth_optimized_heap *const hp, int *const arr, const int arr_size)
+bool kth_optimized_heap_sort(void *const _hp, int *const arr, const int arr_size)
 {
-    log_verify(hp != nullptr, false);
-    log_verify(arr_size >  0, false);
+    log_verify(_hp != nullptr, false);
+    log_verify(arr_size >   0, false);
+
+    kth_optimized_heap *const hp = (kth_optimized_heap *) _hp;
 
     for (int i = 0; i < arr_size; ++i)          kth_optimized_heap_insert     (hp, arr[i]);
     for (int i = 0; i < arr_size; ++i) arr[i] = kth_optimized_heap_extract_min(hp);
@@ -143,14 +177,15 @@ int kth_optimized_heap_extract_min(kth_optimized_heap *const hp)
     int ans = $data[0].key;
     $size--;
 
-    int last_kth_pos = $size;
-    int last_bin_pos = $data[last_kth_pos].pos;
-    int last_key     = $data[last_kth_pos].key;
+    if ($size == 0) return ans;
 
-    int bin_unit_last_ind = ($size - 1) / $k;
+    const int bin_unit_last_ind = ($size - 1) / $k;
 
-    $data[0].key = last_key;
-    $bin_hp[bin_unit_last_ind].size--;
+    const int last_kth_pos = $size;
+    const int last_bin_pos = $data[last_kth_pos].pos;
+
+    binary_optimize_update_key ($bin_hp + bin_unit_last_ind, last_bin_pos, -INF);
+    binary_optimize_extract_min($bin_hp + bin_unit_last_ind);
 
     kth_optimized_heap_sift_down(hp, 0);
     return ans;
@@ -160,7 +195,7 @@ int kth_optimized_heap_extract_min(kth_optimized_heap *const hp)
 // sift
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool kth_optimized_heap_sift_up(kth_optimized_heap *const hp, const int kth_pos)
+static bool kth_optimized_heap_sift_up(kth_optimized_heap *const hp, const int kth_pos)
 {
     log_verify(hp != nullptr, false);
     log_verify(kth_pos >= 0 , false);
@@ -196,7 +231,7 @@ bool kth_optimized_heap_sift_up(kth_optimized_heap *const hp, const int kth_pos)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_pos)
+static bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_pos)
 {
     log_verify(hp   != nullptr, false);
     log_verify(kth_pos < $size, false);
@@ -208,7 +243,6 @@ bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_po
 
     bin_kth_node min_child_node     = binary_optimize_get_min($bin_hp + bin_unit_ind_child);
     int          min_child_key      = min_child_node.key;
-    int          min_child_kth_pos  = min_child_node.pos;
 
     int     key = $data[kth_pos].key;
     int bin_pos = $data[kth_pos].pos;
@@ -221,6 +255,83 @@ bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_po
     return true;
 }
 
+//--------------------------------------------------------------------------------------------------------------------------------
+// dump
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void kth_optimized_heap_dump(kth_optimized_heap *const hp)
+{
+    log_tab_message(HTML_COLOR_MEDIUM_BLUE
+                    "kth_optimized_heap (addr: %p)\n" HTML_COLOR_CANCEL
+                    "{\n",                     hp);
+    if (hp == nullptr) {    log_tab_message("}\n"); return; }
+    LOG_TAB++;
+
+    log_tab_message("k           = %d\n"
+                    "size        = %d\n"
+                    "capacity    = %d\n\n", $k, $size, $capacity);
+
+    log_tab_message("data        = %p\n", $data);
+    if             ($data != nullptr) kth_optimized_heap_data_dump(hp);
+
+    log_tab_message("bin_hp_unit = %p\n", $bin_hp);
+    if             ($bin_hp != nullptr) kth_optimized_heap_unit_dump(hp);
+
+    LOG_TAB--;
+    log_tab_message("}\n");
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void kth_optimized_heap_data_dump(kth_optimized_heap *const hp)
+{
+    log_assert(hp    != nullptr);
+    log_assert($data != nullptr);
+
+    log_tab_message("{\n");
+    LOG_TAB++;
+
+    log_tab_message(HTML_COLOR_MEDIUM_BLUE "index  : ");
+    for (int i = 0; i < $size; ++i) log_message("%10d ", i);
+    log_message("\n");
+
+    log_tab_message(HTML_COLOR_CANCEL
+                    HTML_COLOR_DARK_ORANGE "key    : ");
+    for (int i = 0; i < $size; ++i) log_message("%10d ", $data[i].key);
+    log_tab_message("\n");
+
+    log_tab_message(HTML_COLOR_CANCEL
+                    HTML_COLOR_DARK_RED    "bin_pos: ");
+    for (int i = 0; i < $size; ++i) log_message("%10d ", $data[i].pos);
+    log_tab_message(HTML_COLOR_CANCEL "\n");
+
+    LOG_TAB--;
+    log_tab_message("}\n");
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void kth_optimized_heap_unit_dump(kth_optimized_heap *const hp)
+{
+    log_assert(hp      != nullptr);
+    log_assert($bin_hp != nullptr);
+
+    log_tab_message("{\n");
+    LOG_TAB++;
+
+    int bin_hp_unit_size = ($capacity + $k - 1) / $k;
+    log_tab_message("bin_heap_unit size = %d\n", bin_hp_unit_size);
+
+    for (int i = 0; i < bin_hp_unit_size; ++i)
+    {
+        log_tab_message(HTML_COLOR_MEDIUM_BLUE "#%d" HTML_COLOR_CANCEL "\n", i);
+        binary_optimize_dump($bin_hp + i);
+    }
+
+    LOG_TAB--;
+    log_tab_message("}\n");
+}
+
 //================================================================================================================================
 // BINARY_OPTIMAZE
 //================================================================================================================================
@@ -229,8 +340,8 @@ bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_po
 // ctor
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool binary_optimize_ctor(binary_optimize *const hp, const int capacity, bin_kth_node *const bin_data,
-                                                                         bin_kth_node *const kth_data)
+static bool binary_optimize_ctor(binary_optimize *const hp, const int capacity, bin_kth_node *const bin_data,
+                                                                                bin_kth_node *const kth_data)
 {
     log_verify(hp       != nullptr, false);
     log_verify(bin_data != nullptr, false);
@@ -241,13 +352,15 @@ bool binary_optimize_ctor(binary_optimize *const hp, const int capacity, bin_kth
 
     $size     =        0;
     $capacity = capacity;
+
+    return true;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// insert, update
+// insert, erase, update
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool binary_optimize_insert(binary_optimize *const hp, const int key, const int kth_pos)
+static bool binary_optimize_insert(binary_optimize *const hp, const int key, const int kth_pos)
 {
     log_verify(hp       != nullptr, false);
     log_verify(kth_pos >         0, false);
@@ -263,10 +376,10 @@ bool binary_optimize_insert(binary_optimize *const hp, const int key, const int 
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool binary_optimize_update_key(binary_optimize *const hp, const int bin_pos, const int new_key)
+static bool binary_optimize_update_key(binary_optimize *const hp, const int bin_pos, const int new_key)
 {
     log_verify(hp !=   nullptr, false);
-    log_verify(new_key < $size, false);
+    log_verify(bin_pos < $size, false);
 
     int old_key = $bin_data[bin_pos].key;
     int kth_pos = $bin_data[bin_pos].pos;
@@ -282,7 +395,7 @@ bool binary_optimize_update_key(binary_optimize *const hp, const int bin_pos, co
 // min
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bin_kth_node binary_optimize_get_min(binary_optimize *const hp)
+static bin_kth_node binary_optimize_get_min(binary_optimize *const hp)
 {
     log_verify(hp != nullptr, {0 COMMA 0});
 
@@ -293,7 +406,7 @@ bin_kth_node binary_optimize_get_min(binary_optimize *const hp)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bin_kth_node binary_optimize_extract_min(binary_optimize *const hp)
+static bin_kth_node binary_optimize_extract_min(binary_optimize *const hp)
 {
     log_verify(hp != nullptr, {0 COMMA 0});
     log_verify($size > 0    , {0 COMMA 0});
@@ -313,7 +426,7 @@ bin_kth_node binary_optimize_extract_min(binary_optimize *const hp)
 // sift
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool binary_optimize_sift_up(binary_optimize *const hp, const int bin_pos)
+static bool binary_optimize_sift_up(binary_optimize *const hp, const int bin_pos)
 {
     log_verify(hp != nullptr, false);
     log_verify(bin_pos >=  0, false);
@@ -341,7 +454,7 @@ bool binary_optimize_sift_up(binary_optimize *const hp, const int bin_pos)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool binary_optimize_sift_down(binary_optimize *const hp, const int bin_pos)
+static bool binary_optimize_sift_down(binary_optimize *const hp, const int bin_pos)
 {
     log_verify(hp !=   nullptr, false);
     log_verify(bin_pos < $size, false);
@@ -349,13 +462,14 @@ bool binary_optimize_sift_down(binary_optimize *const hp, const int bin_pos)
     const int l_bin_pos = 2 *   bin_pos + 1;
     const int r_bin_pos = 1 + l_bin_pos;
 
-    const int l_kth_pos = $bin_data[l_bin_pos].pos;
-    const int r_kth_pos = $bin_data[r_bin_pos].pos;
     const int   kth_pos = $bin_data[  bin_pos].pos;
 
-    const int   l_key = (l_bin_pos < $size) ? $bin_data[l_bin_pos].key : INF;
-    const int   r_key = (r_bin_pos < $size) ? $bin_data[r_bin_pos].key : INF;
-    const int bin_key =                       $bin_data[  bin_pos].key      ;
+    const int l_kth_pos = (l_bin_pos < $size) ? $bin_data[l_bin_pos].pos : -1;
+    const int r_kth_pos = (r_bin_pos < $size) ? $bin_data[r_bin_pos].pos : -1;
+
+    const int   l_key   = (l_bin_pos < $size) ? $bin_data[l_bin_pos].key : INF;
+    const int   r_key   = (r_bin_pos < $size) ? $bin_data[r_bin_pos].key : INF;
+    const int bin_key   =                       $bin_data[  bin_pos].key      ;
 
     if (l_key <= bin_key && l_key <= r_key) {   bin_kth_node_swap($bin_data + l_bin_pos, $bin_data + bin_pos);
 
@@ -372,6 +486,56 @@ bool binary_optimize_sift_down(binary_optimize *const hp, const int bin_pos)
                                                 return binary_optimize_sift_down(hp, r_bin_pos);
                                             }
     return true;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// dump
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void binary_optimize_dump(binary_optimize *const hp)
+{
+    log_tab_message(HTML_COLOR_MEDIUM_BLUE
+                    "binary_optimize (addr: %p)\n" HTML_COLOR_CANCEL
+                    "{\n",                  hp);
+    if (hp == nullptr) { log_tab_message("}\n"); return; }
+    LOG_TAB++;
+
+    log_tab_message("bin_data = %p\n", $bin_data);
+    if             ($bin_data != nullptr) binary_optimize_bin_data_dump(hp);
+
+    log_tab_message("kth_data = %p\n\n"
+                    "size     = %d\n"
+                    "capacity = %d\n", $kth_data, $size, $capacity);
+    LOG_TAB--;
+    log_tab_message("}\n");
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void binary_optimize_bin_data_dump(binary_optimize *const hp)
+{
+    log_assert(hp        != nullptr);
+    log_assert($bin_data != nullptr);
+
+    log_tab_message("{\n");
+    LOG_TAB++;
+
+    log_tab_message(HTML_COLOR_MEDIUM_BLUE "index  : ");
+    for (int i = 0; i < $size; ++i) log_message("%10d ", i);
+    log_message("\n");
+
+    log_tab_message(HTML_COLOR_CANCEL
+                    HTML_COLOR_DARK_ORANGE "key    : ");
+    for (int i = 0; i < $size; ++i) log_message("%10d ", $bin_data[i].key);
+    log_tab_message("\n");
+
+    log_tab_message(HTML_COLOR_CANCEL
+                    HTML_COLOR_DARK_RED    "kth_pos: ");
+    for (int i = 0; i < $size; ++i) log_message("%10d ", $bin_data[i].pos);
+    log_tab_message(HTML_COLOR_CANCEL "\n");
+
+    LOG_TAB--;
+    log_tab_message("}\n");
 }
 
 //================================================================================================================================
