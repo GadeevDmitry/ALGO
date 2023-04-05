@@ -21,10 +21,10 @@ static const char *PNG_FILENAME = "../result/plot.png";
 
 static const int   TEST_NUM     =          5;   // число тестов для усреднения
 static const int   TEST_MIN     =    100'000;
-static const int   TEST_MAX     = 10'000'000;
+static const int   TEST_MAX     =  5'000'000;
 static const int   TEST_STEP    =    100'000;
 
-static       int   HP_K_PARAM   =          5;   // праметр k k-ичной кучи
+static       int   HP_K_PARAM   =        300;   // праметр k k-ичной кучи
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // MAIN
@@ -91,7 +91,7 @@ double run_bin_heap(int *const arr, const int arr_size)
     binary_heap    hp = {};
     bin_heap_ctor(&hp, arr_size);
 
-    double sort_time = run_sort(&hp, arr, arr_size);
+    double sort_time = run_sort(&hp, arr, arr_size, bin_heap_sort);
 
     bin_heap_dtor(&hp);
 
@@ -108,7 +108,7 @@ double run_kth_optimized_heap(int *const arr, const int arr_size)
     kth_optimized_heap hp = {};
     kth_optimized_heap_ctor(&hp, HP_K_PARAM, arr_size);
 
-    double sort_time = run_sort(&hp, arr, arr_size);
+    double sort_time = run_sort(&hp, arr, arr_size, kth_optimized_heap_sort);
 
     kth_optimized_heap_dtor(&hp);
 
@@ -125,7 +125,7 @@ double run_kth_heap(int *const arr, const int arr_size)
     k_heap    hp = {};
     k_heap_ctor(&hp, HP_K_PARAM, arr_size);
 
-    double sort_time = run_sort(&hp, arr, arr_size);
+    double sort_time = run_sort(&hp, arr, arr_size, k_heap_sort);
 
     k_heap_dtor(&hp);
 
@@ -134,7 +134,7 @@ double run_kth_heap(int *const arr, const int arr_size)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-double run_sort(void *const hp, int *const arr, const int arr_size)
+double run_sort(void *const hp, int *const arr, const int arr_size, bool (*sort_func) (void *, int *, const int))
 {
     log_assert(hp  != nullptr);
     log_assert(arr != nullptr);
@@ -145,7 +145,7 @@ double run_sort(void *const hp, int *const arr, const int arr_size)
     for (int i = 0; i < TEST_NUM; ++i)
     {
         time_t start_time  = clock();
-        k_heap_sort(hp, arr, arr_size);
+        (*sort_func)(hp, arr, arr_size);
         time_t finish_time = clock();
 
         work_time += finish_time - start_time;
