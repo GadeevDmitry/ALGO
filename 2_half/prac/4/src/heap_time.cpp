@@ -3,6 +3,7 @@
 #include <time.h>
 #include <string.h>
 
+#define LOG_NVERIFY
 #define LOG_NDEBUG
 #include "../../../../lib/logs/log.h"
 
@@ -12,16 +13,18 @@
 
 #include "heap_time.h"
 
+extern const int INF;
+
 static const char *DAT_FILENAME = "../data/data.txt";
 static const char *GPI_FILENAME = "plot.gpi";
 static const char *PNG_FILENAME = "../result/plot.png";
 
-static const int   TEST_NUM     = 5;        // число тестов для усреднения
-static const int   TEST_MIN     =   1'000;
-static const int   TEST_MAX     = 100'000;
-static const int   TEST_STEP    =   1'000;
+static const int   TEST_NUM     =          5;   // число тестов для усреднения
+static const int   TEST_MIN     =    100'000;
+static const int   TEST_MAX     = 10'000'000;
+static const int   TEST_STEP    =    100'000;
 
-static const int   HP_K_PARAM   = 5;        // праметр k k-ичной кучи
+static       int   HP_K_PARAM   =          5;   // праметр k k-ичной кучи
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // MAIN
@@ -29,30 +32,6 @@ static const int   HP_K_PARAM   = 5;        // праметр k k-ичной к�
 
 int main()
 {
-    int arr[9] = { 40, 89, 93, 4, 17, 53, 51, 47, 8 };
-    test_heap_sort(arr, 9, false);
-
-    /*
-    for (int arr_size = 2; arr_size <= 10; ++arr_size) {
-    for (int iter     = 0; iter     < 100; ++iter    )
-        {
-            int *arr_origin = gen_test(arr_size);
-            int *arr_sorted = (int *) log_calloc((size_t) arr_size, sizeof(int));
-            memcpy(arr_sorted, arr_origin, (size_t) arr_size * sizeof(int));
-
-            test_heap_sort(arr_sorted, arr_size, false);
-
-            for (int i = 1; i < arr_size; ++i) if (arr_sorted[i] < arr_sorted[i - 1])
-                                                {
-                                                    dump_wrong_test(arr_origin, arr_sorted, arr_size);
-                                                    return 0;
-                                                }
-            log_free(arr_origin);
-            log_free(arr_sorted);
-        }
-    }
-    */
-    /*
     FILE *const dat_stream = open_data_file();
     if         (dat_stream == nullptr) return 0;
 
@@ -62,17 +41,17 @@ int main()
         if  (arr_original == nullptr)                { fclose(dat_stream); return 0; }
 
         if (!run_frame(arr_original, n, dat_stream)) { fclose(dat_stream); return 0; }
+
         log_free(arr_original);
     }
 
     make_gpi(TEST_MIN, TEST_MAX);
 
     fclose(dat_stream);
-    */
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// RUN
+// RUN_TIME
 //--------------------------------------------------------------------------------------------------------------------------------
 
 bool run_frame(int *const arr_original,
@@ -82,24 +61,23 @@ bool run_frame(int *const arr_original,
     log_assert(out_stream   != nullptr);
 
     int *arr_to_sort = (int *) log_calloc((size_t) arr_size, sizeof(int));
-    if  (arr_to_sort == nullptr)
-    {
-        log_error("log_calloc(arr_size = %lu, sizeof(int) = %lu) returns nullptr\n", arr_size, sizeof(int));
-        return false;
-    }
+    log_assert(arr_to_sort != nullptr);
 
-    double times[2] = {};
+    double times[3] = {};
 
     memcpy(arr_to_sort, arr_original, (size_t) arr_size * sizeof(int));
     times[0] = run_bin_heap(arr_to_sort,  arr_size);
 
     memcpy(arr_to_sort, arr_original, (size_t) arr_size * sizeof(int));
-    times[1] = run_k_heap  (arr_to_sort,  arr_size);
+    times[1] = run_kth_heap(arr_to_sort,  arr_size);
+
+    memcpy(arr_to_sort, arr_original, (size_t) arr_size * sizeof(int));
+    times[2] = run_kth_optimized_heap(arr_to_sort, arr_size);
 
     log_message(HTML_COLOR_LIME_GREEN "test success: size = %lu\n" HTML_COLOR_CANCEL, arr_size);
     log_free   (arr_to_sort);
 
-    save_data_frame(times, 2, arr_size, out_stream);
+    save_data_frame(times, 3, arr_size, out_stream);
     return true;
 }
 
@@ -113,40 +91,65 @@ double run_bin_heap(int *const arr, const int arr_size)
     binary_heap    hp = {};
     bin_heap_ctor(&hp, arr_size);
 
-    time_t work_time = 0;
+    double sort_time = run_sort(&hp, arr, arr_size);
 
-    for (int i = 0; i < TEST_NUM; ++i)
-    {
-        time_t start_time  = clock();
-        bin_heap_sort(&hp, arr, arr_size);
-        time_t finish_time = clock();
-
-        work_time += finish_time - start_time;
-    }
     bin_heap_dtor(&hp);
 
-    return (1000.0 * (double) work_time / (double) TEST_NUM) / CLOCKS_PER_SEC;
+    return sort_time;
 }
 
-double run_k_heap(int *const arr, const int arr_size)
+//--------------------------------------------------------------------------------------------------------------------------------
+
+double run_kth_optimized_heap(int *const arr, const int arr_size)
 {
     log_assert(arr != nullptr);
     log_assert(arr_size  >  0);
 
-    k_heap hp = {};
+    kth_optimized_heap hp = {};
+    kth_optimized_heap_ctor(&hp, HP_K_PARAM, arr_size);
+
+    double sort_time = run_sort(&hp, arr, arr_size);
+
+    kth_optimized_heap_dtor(&hp);
+
+    return sort_time;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+double run_kth_heap(int *const arr, const int arr_size)
+{
+    log_assert(arr != nullptr);
+    log_assert(arr_size  >  0);
+
+    k_heap    hp = {};
     k_heap_ctor(&hp, HP_K_PARAM, arr_size);
+
+    double sort_time = run_sort(&hp, arr, arr_size);
+
+    k_heap_dtor(&hp);
+
+    return sort_time;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+double run_sort(void *const hp, int *const arr, const int arr_size)
+{
+    log_assert(hp  != nullptr);
+    log_assert(arr != nullptr);
+    log_assert(arr_size  >  0);
 
     time_t work_time = 0;
 
     for (int i = 0; i < TEST_NUM; ++i)
     {
         time_t start_time  = clock();
-        k_heap_sort(&hp, arr, arr_size);
+        k_heap_sort(hp, arr, arr_size);
         time_t finish_time = clock();
 
         work_time += finish_time - start_time;
     }
-    k_heap_dtor(&hp);
 
     return (1000.0 * (double) work_time / (double) TEST_NUM) / CLOCKS_PER_SEC;
 }
@@ -154,43 +157,6 @@ double run_k_heap(int *const arr, const int arr_size)
 //--------------------------------------------------------------------------------------------------------------------------------
 // TEST
 //--------------------------------------------------------------------------------------------------------------------------------
-
-void test_heap_sort(int *const arr, const int arr_size, bool is_binary)
-{
-    log_verify(arr != nullptr, (void) 0);
-    log_verify(arr_size > 0,   (void) 0);
-
-    if (is_binary)
-    {
-        binary_heap hp = {};
-
-        bin_heap_ctor(&hp,      arr_size);
-        bin_heap_sort(&hp, arr, arr_size);
-        bin_heap_dtor(&hp);
-    }
-    else
-    {
-        k_optimized_heap hp = {};
-
-        k_optimized_heap_ctor(&hp, HP_K_PARAM, arr_size);
-        k_optimized_heap_sort(&hp, arr       , arr_size);
-        k_optimized_heap_dtor(&hp);
-    }
-}
-
-void dump_wrong_test(const int *arr_original, const int *arr_sorted, const int arr_size)
-{
-    log_tab_message(HTML_COLOR_MEDIUM_BLUE "original:\n" HTML_COLOR_CANCEL);
-    log_message    (HTML_COLOR_DARK_ORANGE);
-    for (int i = 0; i < arr_size; ++i) log_message("%d ", arr_original[i]);
-    log_tab_message(HTML_COLOR_CANCEL "\n");
-
-    log_tab_message(HTML_COLOR_MEDIUM_BLUE "sorted:\n" HTML_COLOR_CANCEL);
-    log_message    (HTML_COLOR_DARK_RED);
-    for (int i = 0; i < arr_size; ++i) log_message("%d ", arr_sorted[i]);
-    log_tab_message(HTML_COLOR_CANCEL "\n");
-
-}
 
 int *gen_test(const int n)
 {
@@ -201,7 +167,7 @@ int *gen_test(const int n)
         return nullptr;
     }
 
-    for (int i = 0; i < n; ++i) { arr[i] = rand() % 100; }
+    for (int i = 0; i < n; ++i) { arr[i] = rand() % INF; }
 
     return arr;
 }
@@ -226,10 +192,13 @@ bool make_gpi(const int x_min, const int x_max)
 
     fprintf(gpi_stream, "set xrange[%d:%d]\n"
                         "set xlabel \"array size\"\n"
-                        "set ylabel \"time, ms\"\n\n"   , x_min, x_max);
+                        "set ylabel \"time, ms\"\n\n", x_min, x_max);
 
     fprintf(gpi_stream, "plot \"%s\" using 1:2 with lines title \"bin\","
-                            " \"%s\" using 1:3 with lines title \"k = %d\"\n", DAT_FILENAME, DAT_FILENAME, HP_K_PARAM);
+                            " \"%s\" using 1:3 with lines title \"k = %d\","
+                            " \"%s\" using 1:4 with lines title \"opt k = %d\n",    DAT_FILENAME,
+                                                                                    DAT_FILENAME, HP_K_PARAM,
+                                                                                    DAT_FILENAME, HP_K_PARAM);
 
     fclose(gpi_stream);
     return true;

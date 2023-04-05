@@ -5,17 +5,16 @@
 // RUN
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool   run_frame   (int *const arr_original, const int arr_size, FILE *const out_stream);
-double run_bin_heap(int *const arr         , const int arr_size);
-double run_k_heap  (int *const arr         , const int arr_size);
+bool   run_frame               (int *const arr_original, const int arr_size, FILE *const out_stream);
+double run_bin_heap            (int *const arr, const int arr_size);
+double run_kth_optimized_heap  (int *const arr, const int arr_size);
+double run_sort(void *const hp, int *const arr, const int arr_size);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // TEST
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void test_heap_sort (int *const arr, const int arr_size, bool is_binary);
-void dump_wrong_test(const int *arr_original, const int *arr_sorted, const int arr_size);
-int *gen_test       (const int n);
+int *gen_test(const int n);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // plot
