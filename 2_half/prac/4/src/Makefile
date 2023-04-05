@@ -9,7 +9,12 @@ BIN_HP     = $(BIN_HP_CPP) $(BIN_HP_H)
 K_HP_CPP   = k_heap.cpp
 K_HP_H     = k_heap.h
 K_HP       = $(K_HP_CPP) $(K_HP_H)
+
+OPT_HP_CPP = k_optimized_heap.cpp
+OPT_HP_H   = k_optimized_heap.h
+OPT_HP     = $(OPT_HP_CPP) $(OPT_HP_H)
+
 #-------------------------------------------------------------------------------------------
 
-time: heap_time.cpp heap_time.h $(BIN_HP)     $(K_HP)     $(LOG_O)
-	g++ $< 						$(BIN_HP_CPP) $(K_HP_CPP) $(LOG_O) $(CFLAGS) -o $@
+time: heap_time.cpp heap_time.h $(BIN_HP)     $(K_HP)     $(OPT_HP)     $(LOG_O)
+	g++ $< 						$(BIN_HP_CPP) $(K_HP_CPP) $(OPT_HP_CPP) $(LOG_O) $(CFLAGS) -o $@
