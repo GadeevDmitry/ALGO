@@ -6,9 +6,12 @@
 //--------------------------------------------------------------------------------------------------------------------------------
 
 bool   run_frame               (int *const arr_original, const int arr_size, FILE *const out_stream);
+
 double run_bin_heap            (int *const arr, const int arr_size);
+double run_kth_heap            (int *const arr, const int arr_size);
 double run_kth_optimized_heap  (int *const arr, const int arr_size);
-double run_sort(void *const hp, int *const arr, const int arr_size);
+
+double run_sort(void *const hp, int *const arr, const int arr_size, bool (*sort_func) (void *, int *, const int));
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // TEST
