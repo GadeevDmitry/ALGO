@@ -17,6 +17,6 @@ bool k_heap_insert     (k_heap *const hp, const int val);
 int  k_heap_get_min    (k_heap *const hp);
 int  k_heap_extract_min(k_heap *const hp);
 
-bool k_heap_sort       (k_heap *const hp, int *const arr, const int arr_size);
+bool k_heap_sort(void *const _hp, int *const arr, const int arr_size);
 
 #endif //K_HEAP_H

@@ -17,6 +17,6 @@ bool bin_heap_insert     (binary_heap *const hp, const int val);
 int  bin_heap_get_min    (binary_heap *const hp);
 int  bin_heap_extract_min(binary_heap *const hp);
 
-bool bin_heap_sort       (binary_heap *const hp, int *const arr, const int arr_size);
+bool bin_heap_sort(void *const _hp, int *const arr, const int arr_size);
 
 #endif //BINARY_HEAP_H

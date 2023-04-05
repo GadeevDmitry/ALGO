@@ -4,6 +4,7 @@
 #include "ctype.h"
 #include "math.h"
 
+#define NLOG
 #define LOG_NVERIFY
 #include "../../../../lib/logs/log.h"
 
@@ -105,10 +106,13 @@ int bin_heap_extract_min(binary_heap *const hp)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool bin_heap_sort(binary_heap *const hp, int *const arr, const int arr_size)
+bool bin_heap_sort(void *const _hp, int *const arr, const int arr_size)
 {
+    log_verify(_hp != nullptr, false);
     log_verify(arr != nullptr, false);
     log_verify(arr_size   > 0, false);
+
+    binary_heap *const hp = (binary_heap *) _hp;
 
     for (int i = 0; i < arr_size; ++i)          bin_heap_insert     (hp, arr[i]);
     for (int i = 0; i < arr_size; ++i) arr[i] = bin_heap_extract_min(hp);

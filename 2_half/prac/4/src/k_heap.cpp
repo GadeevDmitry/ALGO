@@ -4,6 +4,7 @@
 #include "ctype.h"
 #include "math.h"
 
+#define NLOG
 #define LOG_NVERIFY
 #include "../../../../lib/logs/log.h"
 
@@ -95,10 +96,12 @@ int k_heap_extract_min(k_heap *const hp)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool k_heap_sort(k_heap *const hp, int *const arr, const int arr_size)
+bool k_heap_sort(void *const _hp, int *const arr, const int arr_size)
 {
-    log_verify(hp != nullptr, false);
-    log_verify(arr_size >  0, false);
+    log_verify(_hp != nullptr, false);
+    log_verify(arr_size >   0, false);
+
+    k_heap *const hp = (k_heap *) _hp;
 
     for (int i = 0; i < arr_size; ++i)          k_heap_insert     (hp, arr[i]);
     for (int i = 0; i < arr_size; ++i) arr[i] = k_heap_extract_min(hp);
