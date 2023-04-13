@@ -15,8 +15,6 @@ ALL_O = $(LOG_O) $(ALG_O) $(STK_O) $(LST_O)
 # main
 #-----------------------------------------------------
 
-a_contest:
-a_test:
 
 %_contest: %.cpp
 	g++ $(CFLAGS) $^ -o $@
