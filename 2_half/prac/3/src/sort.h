@@ -1,41 +1,24 @@
 #ifndef SORT_H
 #define SORT_H
 
-//================================================================================================================================
-// FUNCTION DECLARATION
-//================================================================================================================================
+#include <stdlib.h>
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// sort
+// quadratic
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void bubble_sort(int *const arr, const int n);
-void insert_sort(int *const arr, const int n);
-void choose_sort(int *const arr, const int n);
-//--------------------------------------------------------------------------------------------------------------------------------
-void merge_sort(int *const arr, const int n);
-void merge     (int *const arr, const int n);
-//--------------------------------------------------------------------------------------------------------------------------------
-void quick_sort                    (int *const arr, const int n, int (*get_pivot) (int *, int));
-int  quick_sort_frame              (int *const arr, const int n, int (*get_pivot) (int *, int));
-
-void      sort_by_median_of_three  (int *const arr, const int n);
-int  get_pivot_by_median_of_three  (int *const arr, const int n);
-
-void      sort_by_central          (int *const arr, const int n);
-int  get_pivot_by_central          (int *const arr, const int n);
-
-void      sort_by_rand             (int *const arr, const int n);
-int  get_pivot_by_rand             (int *const arr, const int n);
-
-void      sort_by_median_of_medians(int *const arr, const int n);
-int  get_pivot_by_median_of_medians(int *const arr, const int n);
-int  kth_element                   (int *const arr, const int n, const int k);
+void sort_insert(int *const arr, const size_t size);
+void sort_bubble(int *const arr, const size_t size);
+void sort_choose(int *const arr, const size_t size);
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// swap
+// logarithmic
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void int_swap(int *const a, int *const b);
+void sort_by_median_of_three  (int *const arr, const size_t size);
+void sort_by_central          (int *const arr, const size_t size);
+void sort_by_rand             (int *const arr, const size_t size);
+void sort_by_median_of_medians(int *const arr, const size_t size);
+void sort_merge               (int *const arr, const size_t size);
 
 #endif //SORT_H

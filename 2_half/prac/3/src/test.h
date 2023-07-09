@@ -1,36 +1,61 @@
 #ifndef TEST_H
 #define TEST_H
 
-#include "time.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <time.h>
+
+#include "sort.h"
+
+#define NDEBUG
+#define NVERIFY
+#define LOG_NTRACE
+#define LOG_NLEAK
+#include "../../../../lib/logs/log.h"
+#include "../../../../lib/algorithm/algorithm.h"
 
 //================================================================================================================================
-// FUNCTION DECLARATION
+// GLOBAL
 //================================================================================================================================
 
-//--------------------------------------------------------------------------------------------------------------------------------
-// RUN
-//--------------------------------------------------------------------------------------------------------------------------------
+struct sort_func
+{
+    void (*func) (int *const arr, const size_t size);
+    const char *name;
+};
 
-bool   run_test_frame(int *const arr_original, const int n, FILE *const dat_stream);
-double run_test      (int *const arr         , const int n, void (*sort) (int *, int));
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// TEST_GEN
-//--------------------------------------------------------------------------------------------------------------------------------
-
-int *gen_test(const int n);
+#define CSV_SEP ";"
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// DATA
+// performance
 //--------------------------------------------------------------------------------------------------------------------------------
 
-FILE *open_data_file ();
-void  save_data_frame(const double *const data_frame, const int frame_size, const int elem_num, FILE *const out_stream);
+const size_t SIZE_MIN  =      1'000;
+const size_t SIZE_MAX  = 10'000'000;
+const size_t SIZE_STEP =    100'000;
+
+const size_t AVERAGED_NUM = 5;
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// PLOT
+// correctness
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool make_gpi(const int x_min, const int x_max);
+const size_t SIZE_CORRECTNESS = 100;
+
+//================================================================================================================================
+// FUNCTION
+//================================================================================================================================
+
+int *generate_array(                      const size_t size);
+int *   clone_array(const int *const arr, const size_t size);
+
+void   test_performance      (FILE *const output, const sort_func *const begin, const sort_func *const end);
+double test_performance_frame(void (*sort)(int *const arr, const size_t size),
+                                           int *const arr, const size_t size);
+
+void test_correctness  (sort_func sort);
+bool is_array_sorted   (const int *const arr_raw, const int *const arr_sorted, const size_t size);
+void dump_invalid_array(const int *const arr_raw, const int *const arr_sorted, const size_t size);
 
 #endif //TEST_H

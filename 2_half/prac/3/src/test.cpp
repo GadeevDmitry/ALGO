@@ -1,180 +1,194 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <assert.h>
-#include <string.h>
-#include <ctype.h>
-#include <time.h>
-
-#include "../../../../lib/logs/log.h"
-#include "../../../../lib/algorithm/algorithm.h"
-
-#include "sort.h"
 #include "test.h"
 
 //================================================================================================================================
-// TEST
-//================================================================================================================================
-
-const char *DAT_FILENAME = "../data/data.txt";
-const char *GPI_FILENAME = "plot.gpi";
-const char *PNG_FILENAME = "../result/plot.png";
-
-const int   TEST_NUM  = 5;          // число тестов для усреднения
-const int   TEST_MIN  = 1'000;
-const int   TEST_MAX  = 10'000'000;
-const int   TEST_STEP = 100'000;
-
-//--------------------------------------------------------------------------------------------------------------------------------
 // MAIN
-//--------------------------------------------------------------------------------------------------------------------------------
+//================================================================================================================================
 
 int main()
 {
-    FILE *const dat_stream = open_data_file();
-    if         (dat_stream == nullptr) return 0;
+    sort_func sort_arr[] = {
+                            {sort_insert, "sort_insert"},                               // 0
+                            {sort_bubble, "sort_bubble"},
+                            {sort_choose, "sort_choose"},
 
-    for (int n = TEST_MIN; n <= TEST_MAX; n += TEST_STEP)
-    {
-        int *arr_original = gen_test(n);
-        if  (arr_original == nullptr)                     { fclose(dat_stream); return 0; }
+                            {sort_by_median_of_three  , "sort_by_median_of_three  "},   // 3
+                            {sort_by_central          , "sort_by_central          "},
+                            {sort_by_rand             , "sort_by_rand             "},
+                            {sort_by_median_of_medians, "sort_by_median_of_medians"},
 
-        if (!run_test_frame(arr_original, n, dat_stream)) { fclose(dat_stream); return 0; }
-        log_free(arr_original);
-    }
+                            {sort_merge               , "sort_merge               "},   // 7
+                           };                                                           // 8
 
-    make_gpi(TEST_MIN, TEST_MAX);
-
-    fclose(dat_stream);
+    #ifdef CORRECTNESS
+    for (size_t it = 0; it * sizeof(sort_func) < sizeof(sort_arr); ++it)
+        test_correctness(sort_arr[it]);
+    #else
+    FILE *output = fopen("../data/merge.csv", "w");
+    test_performance(output, sort_arr + 7, sort_arr + 8);
+    fclose(output);
+    #endif
 }
 
-//--------------------------------------------------------------------------------------------------------------------------------
-// RUN
-//--------------------------------------------------------------------------------------------------------------------------------
+//================================================================================================================================
 
-bool run_test_frame(int *const arr_original, const int n, FILE *const out_stream)
+int *generate_array(const size_t size)
 {
-    log_assert(arr_original != nullptr);
-    log_assert(out_stream   != nullptr);
+    int *arr = (int *) log_calloc(size, sizeof(int));
+    log_assert(arr != nullptr);
 
-    int *arr_to_sort = (int *) log_calloc((size_t) n, sizeof(int));
-    if  (arr_to_sort == nullptr)
-    {
-        log_error("log_calloc(n = %lu, sizeof(int) = %lu) returns nullptr\n", n, sizeof(int));
-        return false;
-    }
-
-    double times[4] = {};
-
-    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    times[0] = run_test(arr_to_sort , n, sort_by_median_of_three);
-
-    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    times[1] = run_test(arr_to_sort , n, sort_by_central);
-
-    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    times[2] = run_test(arr_to_sort,  n, sort_by_rand);
-
-    memcpy(arr_to_sort, arr_original, (size_t) n * sizeof(int));
-    times[3] = run_test(arr_to_sort , n, merge_sort);
-
-    log_message(HTML_COLOR_LIME_GREEN "test success: n = %lu\n" HTML_COLOR_CANCEL, n);
-    log_free   (arr_to_sort);
-
-    save_data_frame(times, 4, n, out_stream);
-    return true;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-
-double run_test(int *const arr, const int n, void (*sort) (int *, int))
-{
-    log_assert(arr  != nullptr);
-    log_assert(sort != nullptr);
-
-    time_t work_time = 0;
-
-    for (int i = 0; i < TEST_NUM; ++i)
-    {
-        time_t start_time  = clock();
-        (*sort) (arr, n);
-        time_t finish_time = clock();
-
-        work_time += finish_time - start_time;
-    }
-
-    return (1000.0 * (double) work_time / (double) TEST_NUM) / CLOCKS_PER_SEC;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// TEST_GEN
-//--------------------------------------------------------------------------------------------------------------------------------
-
-int *gen_test(const int n)
-{
-    int *arr = (int *) log_calloc((size_t) n, sizeof(int));
-    if  (arr == nullptr)
-    {
-        log_error("log_calloc(n = %lu, sizeof(int) = %lu) returns nullptr\n", n, sizeof(int));
-        return nullptr;
-    }
-
-    for (int i = 0; i < n; ++i) { arr[i] = rand(); }
-
+    for (size_t ind = 0; ind < size; ++ind) arr[ind] = rand() % 100;
     return arr;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// DATA
+
+int *clone_array(const int *const arr, const size_t size)
+{
+    log_assert(arr != nullptr);
+
+    int *clone = (int *) log_calloc(size, sizeof(int));
+    log_assert(clone != nullptr);
+
+    memcpy(clone, arr, size * sizeof(int));
+    return clone;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// performance
 //--------------------------------------------------------------------------------------------------------------------------------
 
-FILE *open_data_file()
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wcast-qual"
+
+void test_performance(FILE *const output, const sort_func *const begin,
+                                          const sort_func *const end)
 {
-    FILE *const dat_stream = fopen(DAT_FILENAME, "w");
-    if         (dat_stream == nullptr)
+    log_assert(output != nullptr);
+    log_assert(begin  != nullptr);
+    log_assert(end    != nullptr);
+
+    fprintf(output, "size" CSV_SEP " ");
+    for (const sort_func *cur = begin; cur < end; ++cur)
     {
-        log_error("can't open \"%s\"\n", DAT_FILENAME);
+        log_assert(cur->func != nullptr);
+        log_assert(cur->name != nullptr);
+
+        fprintf(output, "%s" CSV_SEP " ", cur->name);
+    }
+    putc('\n', output);
+
+    for (size_t size = SIZE_MIN; size <= SIZE_MAX; size += SIZE_STEP)
+    {
+        const int *const arr_raw  = generate_array(         size);
+              int *const arr_sort =    clone_array(arr_raw, size);
+
+        fprintf(output, "%lu" CSV_SEP " ", size);
+        for (const sort_func *cur = begin; cur < end; ++cur)
+        {
+            double time = test_performance_frame(cur->func, arr_sort, size);
+            fprintf(output, "%lf" CSV_SEP " ", time);
+        }
+        putc('\n', output);
+
+        log_free((int *) arr_raw );
+        log_free(        arr_sort);
+        log_tab_ok_message("PERFORMANCE TEST IS OK: size = %lu", "\n", size);
+    }
+}
+
+#pragma GCC diagnostic pop
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+double test_performance_frame(void (*sort) (int *const arr, const size_t size),
+                                            int *const arr, const size_t size)
+{
+    log_assert(sort != nullptr);
+    log_assert(arr  != nullptr);
+
+    double time = 0.0;
+
+    for (size_t it = 0; it < AVERAGED_NUM; ++it)
+    {
+        clock_t start  = clock();
+        sort(arr, size);
+        clock_t finish = clock();
+
+        time += 1000.0 * (finish - start) / CLOCKS_PER_SEC;
     }
 
-    return dat_stream;
+    return time / (double) AVERAGED_NUM;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// correctness
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void test_correctness(sort_func sort)
+{
+    log_assert(sort.func != nullptr);
+    log_assert(sort.name != nullptr);
+
+    log_tab_service_message("CHECKING \"%s\" FOR CORRECTNESS\n{", "\n", sort.name);
+    LOG_TAB++;
+
+    bool is_sorted = true;
+    for (size_t i = 0; i < 100; ++i)
+    {
+        int *arr_raw    = generate_array(         SIZE_CORRECTNESS);
+        int *arr_sorted =    clone_array(arr_raw, SIZE_CORRECTNESS);
+        
+        sort.func(arr_sorted, SIZE_CORRECTNESS);
+        is_sorted = is_array_sorted(arr_raw, arr_sorted, SIZE_CORRECTNESS);
+
+        log_free(arr_raw);
+        log_free(arr_sorted);
+
+        if (!is_sorted) break;
+    }
+
+    if (is_sorted) log_tab_ok_message("CHECKING SUCCESS", "\n");
+
+    LOG_TAB--;
+    log_tab_service_message("}", "\n");
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void save_data_frame(const double *const data_frame, const int frame_size, const int elem_num, FILE *const dat_stream)
+bool is_array_sorted(const int *const arr_raw,
+                     const int *const arr_sorted, const size_t size)
 {
-    log_assert(data_frame != nullptr);
-    log_assert(dat_stream != nullptr);
+    log_assert(arr_raw    != nullptr);
+    log_assert(arr_sorted != nullptr);
 
-    fprintf(dat_stream, "%10d | ", elem_num);
-
-    for (int i = 0; i < frame_size; ++i) { fprintf(dat_stream, "%15.5lf | ", data_frame[i]); }
-    putc('\n', dat_stream);
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// PLOT
-//--------------------------------------------------------------------------------------------------------------------------------
-
-bool make_gpi(const int x_min, const int x_max)
-{
-    FILE *const gpi_stream = fopen(GPI_FILENAME, "w");
-    if         (gpi_stream == nullptr)
+    for (size_t ind = 1; ind < size; ++ind)
     {
-        log_error("can't open \"%s\"\n", GPI_FILENAME);
-        return false;
+        if (arr_sorted[ind] < arr_sorted[ind - 1]) { dump_invalid_array(arr_raw, arr_sorted, size); return false; }
     }
-
-    fprintf(gpi_stream, "set terminal png\n"
-                        "set output \"%s\"\n\n"
-                        "set datafile separator \"|\"\n"
-                        "set grid\n\n", PNG_FILENAME);
-
-    fprintf(gpi_stream, "set xrange[%d:%d]\n"
-                        "set xlabel \"Array size\"\n"
-                        "set ylabel \"time, ms\"\n\n"   , x_min, x_max);
-
-    fprintf(gpi_stream, "plot \"%s\" using 1:2 with lines title \"merge\"\n", DAT_FILENAME);
-
-    fclose(gpi_stream);
     return true;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void dump_invalid_array(const int *const arr_raw,
+                        const int *const arr_sorted, const size_t size)
+{
+    log_assert(arr_raw    != nullptr);
+    log_assert(arr_sorted != nullptr);
+
+    log_tab_error_message  ("CHECKING failed:", "\n");
+    log_tab_service_message("source array:", "");
+
+    for (size_t ind = 0; ind < size; ++ind) log_message(" %5d", arr_raw[ind]);
+
+    log_tab_service_message("\n"
+                            "sorted array:", "");
+
+    for (size_t ind = 0; ind < size; ++ind)
+    {
+        if (ind == 0 || arr_sorted[ind] > arr_sorted[ind - 1]) log_ok_message   (" %5d", "", arr_sorted[ind]);
+        else                                                   log_error_message(" %5d", "", arr_sorted[ind]);
+    }
+
+    log_tab_service_message("", "\n");
 }
