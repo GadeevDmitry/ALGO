@@ -41,6 +41,7 @@ const size_t AVERAGED_NUM = 5;
 // correctness
 //--------------------------------------------------------------------------------------------------------------------------------
 
+const int    MAX_ARR_VALUE    = 100;
 const size_t SIZE_CORRECTNESS = 100;
 
 //================================================================================================================================
@@ -54,8 +55,11 @@ void   test_performance      (FILE *const output, const sort_func *const begin, 
 double test_performance_frame(void (*sort)(int *const arr, const size_t size),
                                            int *const arr, const size_t size);
 
-void test_correctness  (sort_func sort);
-bool is_array_sorted   (const int *const arr_raw, const int *const arr_sorted, const size_t size);
-void dump_invalid_array(const int *const arr_raw, const int *const arr_sorted, const size_t size);
+void test_correctness         (sort_func sort);
+bool is_array_correct         (const int *const arr_raw, const int *const arr_sorted, const size_t size);
+void dump_incorrect_array     (const int *const arr_raw, const int *const arr_sorted, const size_t size);
+void dump_array               (const int *const arr_raw, const int *const arr_sorted, const size_t size);
+void dump_incorrect_count     (const int *const arr_raw, const int *const arr_sorted, const size_t size, size_t *const count);
+void dump_count               (const int *const arr_raw, const int *const arr_sorted, const size_t size, size_t *const count);
 
 #endif //TEST_H

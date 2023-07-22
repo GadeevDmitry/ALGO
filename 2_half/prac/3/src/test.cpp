@@ -86,6 +86,8 @@ void test_performance(FILE *const output, const sort_func *const begin,
         for (const sort_func *cur = begin; cur < end; ++cur)
         {
             double time = test_performance_frame(cur->func, arr_sort, size);
+            memcpy(arr_sort, arr_raw, size * sizeof(int));
+
             fprintf(output, "%lf" CSV_SEP " ", time);
         }
         putc('\n', output);
@@ -139,7 +141,7 @@ void test_correctness(sort_func sort)
         int *arr_sorted =    clone_array(arr_raw, SIZE_CORRECTNESS);
         
         sort.func(arr_sorted, SIZE_CORRECTNESS);
-        is_sorted = is_array_sorted(arr_raw, arr_sorted, SIZE_CORRECTNESS);
+        is_sorted = is_array_correct(arr_raw, arr_sorted, SIZE_CORRECTNESS);
 
         log_free(arr_raw);
         log_free(arr_sorted);
@@ -155,28 +157,46 @@ void test_correctness(sort_func sort)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool is_array_sorted(const int *const arr_raw,
-                     const int *const arr_sorted, const size_t size)
+bool is_array_correct(const int *const arr_raw,
+                      const int *const arr_sorted, const size_t size)
 {
     log_assert(arr_raw    != nullptr);
     log_assert(arr_sorted != nullptr);
 
-    for (size_t ind = 1; ind < size; ++ind)
+    size_t        count[MAX_ARR_VALUE] = {};
+    size_t source_count[MAX_ARR_VALUE] = {};
+
+    for (size_t ind = 0; ind < size; ++ind) count[arr_raw[ind]]++;
+    memcpy(source_count, count, MAX_ARR_VALUE * sizeof(size_t));
+
+    for (size_t ind = 0; ind < size; ++ind)
     {
-        if (arr_sorted[ind] < arr_sorted[ind - 1]) { dump_invalid_array(arr_raw, arr_sorted, size); return false; }
+        if (ind != 0 && arr_sorted[ind] < arr_sorted[ind - 1]) { dump_incorrect_array(arr_raw, arr_sorted, size);               return false; }
+        if (count[arr_sorted[ind]] == 0UL)                     { dump_incorrect_count(arr_raw, arr_sorted, size, source_count); return false; }
+
+        count[arr_sorted[ind]]--;
     }
+
     return true;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void dump_invalid_array(const int *const arr_raw,
-                        const int *const arr_sorted, const size_t size)
+void dump_incorrect_array(const int *const arr_raw,
+                          const int *const arr_sorted, const size_t size)
 {
     log_assert(arr_raw    != nullptr);
     log_assert(arr_sorted != nullptr);
 
-    log_tab_error_message  ("CHECKING failed:", "\n");
+    log_tab_error_message("SORTING failed:", "\n");
+    dump_array(arr_raw, arr_sorted, size);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void dump_array(const int *const arr_raw,
+                const int *const arr_sorted, const size_t size)
+{
     log_tab_service_message("source array:", "");
 
     for (size_t ind = 0; ind < size; ++ind) log_message(" %5d", arr_raw[ind]);
@@ -186,8 +206,46 @@ void dump_invalid_array(const int *const arr_raw,
 
     for (size_t ind = 0; ind < size; ++ind)
     {
-        if (ind == 0 || arr_sorted[ind] > arr_sorted[ind - 1]) log_ok_message   (" %5d", "", arr_sorted[ind]);
-        else                                                   log_error_message(" %5d", "", arr_sorted[ind]);
+        if (ind == 0 || arr_sorted[ind] >= arr_sorted[ind - 1]) log_ok_message   (" %5d", "", arr_sorted[ind]);
+        else                                                    log_error_message(" %5d", "", arr_sorted[ind]);
+    }
+
+    log_tab_service_message("", "\n");
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void dump_incorrect_count(const int *const arr_raw,
+                          const int *const arr_sorted, const size_t size, size_t *const count)
+{
+    log_assert(arr_raw    != nullptr);
+    log_assert(arr_sorted != nullptr);
+    log_assert(count      != nullptr);
+
+    log_tab_error_message("COUNTING failed:", "\n");
+    dump_count(arr_raw, arr_sorted, size, count);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void dump_count(const int *const arr_raw,
+                const int *const arr_sorted, const size_t size, size_t *const count)
+{
+    log_assert(arr_raw    != nullptr);
+    log_assert(arr_sorted != nullptr);
+    log_assert(count      != nullptr);
+
+    log_tab_service_message("source array:", "");
+
+    for (size_t ind = 0; ind < size; ++ind) log_message(" %5d", arr_raw[ind]);
+
+    log_tab_service_message("\n"
+                            "sorted array:", "");
+
+    for (size_t ind = 0; ind < size; ++ind)
+    {
+        if (count[arr_sorted[ind]] == 0UL) log_error_message(" %5d", "", arr_sorted[ind]);
+        else { count[arr_sorted[ind]]--;   log_ok_message   (" %5d", "", arr_sorted[ind]); }
     }
 
     log_tab_service_message("", "\n");
