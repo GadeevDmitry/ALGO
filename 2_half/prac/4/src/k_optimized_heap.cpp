@@ -1,560 +1,456 @@
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
-#include "ctype.h"
-#include "math.h"
+#include <cstddef>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
 
-#define NLOG
-#define LOG_NVERIFY
+//#define NDEBUG
+//#define NVERIFY
+#define LOG_NLEAK
+#define LOG_NTRACE
 #include "../../../../lib/logs/log.h"
 
 #include "k_optimized_heap.h"
 
-extern const int INF;
-const  int INF = (int) 2e9;
-
 //================================================================================================================================
-// STATIC GLOBAL
-//================================================================================================================================
-
-#define COMMA ,
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// binary_optimize
-//--------------------------------------------------------------------------------------------------------------------------------
-
-static bool binary_optimize_ctor(binary_optimize *const hp, const int capacity, bin_kth_node *const bin_data,
-                                                                                bin_kth_node *const kth_data);
-//--------------------------------------------------------------------------------------------------------------------------------
-static bool binary_optimize_insert    (binary_optimize *const hp, const int key,     const int kth_pos);
-static bool binary_optimize_update_key(binary_optimize *const hp, const int bin_pos, const int new_key);
-//--------------------------------------------------------------------------------------------------------------------------------
-static bin_kth_node binary_optimize_get_min    (binary_optimize *const hp);
-static bin_kth_node binary_optimize_extract_min(binary_optimize *const hp);
-//--------------------------------------------------------------------------------------------------------------------------------
-static bool binary_optimize_sift_up  (binary_optimize *const hp, const int bin_pos);
-static bool binary_optimize_sift_down(binary_optimize *const hp, const int bin_pos);
-//--------------------------------------------------------------------------------------------------------------------------------
-static void binary_optimize_dump         (binary_optimize *const hp);
-static void binary_optimize_bin_data_dump(binary_optimize *const hp);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // kth_optimized_heap
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static bool kth_optimized_heap_sift_up  (kth_optimized_heap *const hp, const int kth_pos);
-static bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_pos);
+static void kth_optimized_heap_sift_up  (kth_optimized_heap *const heap, const size_t kth_pos);
+static void kth_optimized_heap_sift_down(kth_optimized_heap *const heap, const size_t kth_pos);
+static void kth_optimized_heap_node_swap(kth_optimized_heap *const heap, const size_t kth_1_pos, const size_t kth_2_pos);
+
 //--------------------------------------------------------------------------------------------------------------------------------
-static void kth_optimized_heap_data_dump(kth_optimized_heap *const hp);
-static void kth_optimized_heap_unit_dump(kth_optimized_heap *const hp);
+// binary_heap
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void   binary_heap_ctor        (binary_heap *const heap, node_t *const kth_data, node_t *const bin_data, const  size_t capacity);
+
+static void   binary_heap_insert      (binary_heap *const heap, const key_t key, const size_t kth_pos);
+static void   binary_heap_erase       (binary_heap *const heap,                  const size_t bin_pos);
+
+static void   binary_heap_decrease_key(binary_heap *const heap, const size_t bin_pos, const key_t new_key);
+
+static void   binary_heap_extract_min (binary_heap *const heap);
+static size_t binary_heap_get_min_ind (binary_heap *const heap);
+
+static void   binary_heap_sift_up     (binary_heap *const heap, const size_t bin_pos);
+static void   binary_heap_sift_down   (binary_heap *const heap, const size_t bin_pos);
+static void   binary_heap_node_swap   (binary_heap *const heap, const size_t bin_1_pos, const size_t bin_2_pos);
 
 //================================================================================================================================
-// DSL
-//================================================================================================================================
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// common
-//--------------------------------------------------------------------------------------------------------------------------------
-
-#define $size       hp->size
-#define $capacity   hp->capacity
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // kth_optimized_heap
 //--------------------------------------------------------------------------------------------------------------------------------
 
-#define $k          hp->k
-#define $data       hp->data
-#define $bin_hp     hp->bin_heap_unit
+#define GET_PAR_IND(         heap, kth_pos) ((kth_pos - 1) / heap->k)
+#define GET_L_CHILD_IND(     heap, kth_pos) (heap->k * kth_pos + 1)
+#define GET_R_CHILD_IND(     heap, kth_pos) (heap->k * (kth_pos + 1))
+
+#define GET_KEY(             heap, kth_pos) heap->kth_data[kth_pos].key
+#define GET_BIN_IND(         heap, kth_pos) heap->kth_data[kth_pos].pos
+#define GET_PAR_KEY(         heap, kth_pos) GET_KEY(heap, GET_PAR_IND(heap, kth_pos))
+
+#define SET_KEY(             heap, kth_pos, key_val) GET_KEY    (heap, kth_pos) = key_val;
+#define SET_BIN_IND(         heap, kth_pos, ind_val) GET_BIN_IND(heap, kth_pos) = ind_val;
+#define SET_PAR_KEY(         heap, kth_pos, key_val) GET_PAR_KEY(heap, kth_pos) = key_val;
+
+#define GET_BIN_HEAP_IND(    heap, kth_pos) ((kth_pos - 1) / heap->k)
+#define GET_BIN_HEAP(        heap, kth_pos) (heap->bin_heap_arr + GET_BIN_HEAP_IND(heap, kth_pos))
+
+#define GET_PAR_BIN_HEAP_IND(heap, kth_pos) GET_BIN_HEAP_IND(heap, GET_PAR_IND(kth_pos))
+#define GET_PAR_BIN_HEAP(    heap, kth_pos) GET_BIN_HEAP    (heap, GET_PAR_IND(kth_pos))
+
+#define GET_CHILD_BIN_HEAP_IND(    kth_pos) kth_pos
+#define GET_CHILD_BIN_HEAP(  heap, kth_pos) heap->bin_heap_arr + GET_CHILD_BIN_HEAP_IND(kth_pos)
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// binary_optimize
-//--------------------------------------------------------------------------------------------------------------------------------
 
-#define $bin_data   hp->bin_data
-#define $kth_data   hp->kth_data
-
-//================================================================================================================================
-// KTH_OPTIMAZED_HEAP
-//================================================================================================================================
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// ctor-dtor
-//--------------------------------------------------------------------------------------------------------------------------------
-
-bool kth_optimized_heap_ctor(kth_optimized_heap *const hp, const int k, const int capacity)
+kth_optimized_heap *kth_optimized_heap_new(const size_t k, const size_t capacity)
 {
-    log_verify(hp != nullptr, false);
-    log_verify(k        >  1, false);
-    log_verify(capacity >  0, false);
+    kth_optimized_heap *heap = (kth_optimized_heap *) log_calloc(1, sizeof(kth_optimized_heap));
+    log_verify(heap != nullptr, nullptr);
 
-    int           bin_hp_unit_size = (capacity + k - 1) / k;    // количество бинарных куч
-    bin_kth_node *bin_hp_data      = nullptr;                   // массив с данными бинарных куч
-
-   $data        = (bin_kth_node    *) log_calloc((size_t) capacity        , sizeof(bin_kth_node   ));  // данные k-ичной кучи
-   $bin_hp      = (binary_optimize *) log_calloc((size_t) bin_hp_unit_size, sizeof(binary_optimize));  // массив бинарных куч
-    bin_hp_data = (bin_kth_node    *) log_calloc((size_t) capacity        , sizeof(bin_kth_node   ));
-
-    log_verify($data        != nullptr, false);
-    log_verify($bin_hp      != nullptr, false);
-    log_verify( bin_hp_data != nullptr, false);
-
-    $k        =        k;
-    $size     =        0;
-    $capacity = capacity;
-
-    int data_offset = 0;
-    for (int i = 0; i < bin_hp_unit_size; ++i)
+    if (!kth_optimized_heap_ctor(heap, k, capacity))
     {
-        binary_optimize_ctor($bin_hp + i, k, bin_hp_data + data_offset, $data);
-        data_offset += k;
+        log_free(heap);
+        return nullptr;
     }
 
-    return true;
+    return heap;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-void kth_optimized_heap_dtor(kth_optimized_heap *const hp)
+bool kth_optimized_heap_ctor(kth_optimized_heap *const heap, const size_t k, const size_t capacity)
 {
-    if (hp == nullptr) return;
+    log_verify(heap != nullptr, false);
 
-    log_free($data);
-    log_free($bin_hp->bin_data);
-    log_free($bin_hp);
-}
+    heap->k        = k;
+    heap->size     = 0;
+    heap->capacity = capacity;
 
-//--------------------------------------------------------------------------------------------------------------------------------
-// insert, sort
-//--------------------------------------------------------------------------------------------------------------------------------
+    size_t bin_heap_arr_size = (capacity + k - 1) / k;
 
-bool kth_optimized_heap_insert(kth_optimized_heap *const hp, const int key)
-{
-    log_verify(hp !=     nullptr, false);
-    log_verify($size < $capacity, false);
+    heap->kth_data     = (node_t *)      log_calloc(capacity,          sizeof(node_t));
+    heap->bin_unit     = (node_t *)      log_calloc(capacity,          sizeof(node_t));
+    heap->bin_heap_arr = (binary_heap *) log_calloc(bin_heap_arr_size, sizeof(binary_heap));
 
-    $data[$size].key = key; $size++;
-    if   ($size == 1) return true;
+    node_t *bin_heap_data = heap->bin_unit;
 
-    int bin_hp_unit_ind = ($size - 2) / $k;
-    binary_optimize_insert($bin_hp + bin_hp_unit_ind, key, $size - 1);
-
-    return kth_optimized_heap_sift_up(hp, $size - 1);
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-
-bool kth_optimized_heap_sort(void *const _hp, int *const arr, const int arr_size)
-{
-    log_verify(_hp != nullptr, false);
-    log_verify(arr_size >   0, false);
-
-    kth_optimized_heap *const hp = (kth_optimized_heap *) _hp;
-
-    for (int i = 0; i < arr_size; ++i)          kth_optimized_heap_insert     (hp, arr[i]);
-    for (int i = 0; i < arr_size; ++i) arr[i] = kth_optimized_heap_extract_min(hp);
-
-    return true;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// min
-//--------------------------------------------------------------------------------------------------------------------------------
-
-int kth_optimized_heap_get_min(kth_optimized_heap *const hp)
-{
-    log_verify(hp != nullptr, 0);
-    log_verify($size !=    0, 0);
-
-    return $data[0].key;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-
-int kth_optimized_heap_extract_min(kth_optimized_heap *const hp)
-{
-    log_verify(hp != nullptr, 0);
-    log_verify($size !=    0, 0);
-
-    int ans = $data[0].key;
-    $size--;
-
-    if ($size == 0) return ans;
-
-    const int bin_unit_last_ind = ($size - 1) / $k;
-
-    const int last_kth_pos = $size;
-    const int last_bin_pos = $data[last_kth_pos].pos;
-
-    binary_optimize_update_key ($bin_hp + bin_unit_last_ind, last_bin_pos, -INF);
-    binary_optimize_extract_min($bin_hp + bin_unit_last_ind);
-
-    kth_optimized_heap_sift_down(hp, 0);
-    return ans;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// sift
-//--------------------------------------------------------------------------------------------------------------------------------
-
-static bool kth_optimized_heap_sift_up(kth_optimized_heap *const hp, const int kth_pos)
-{
-    log_verify(hp != nullptr, false);
-    log_verify(kth_pos >= 0 , false);
-
-    if (kth_pos == 0) return true;
-
-    const int kth_par_pos = (kth_pos - 1) / $k;
-    const int bin_par_pos = $data[kth_par_pos].pos;
-    const int     par_key = $data[kth_par_pos].key;
-
-    const int bin_pos = $data[kth_pos].pos;
-    const int     key = $data[kth_pos].key;
-
-    if (par_key <= key) return true;
-
-    const int par_bin_unit_ind = (kth_par_pos - 1) / $k;
-    const int     bin_unit_ind = (kth_pos     - 1) / $k;
-
-    if (kth_par_pos == 0)
+    for (size_t arr_ind = 0; arr_ind < bin_heap_arr_size; ++arr_ind)
     {
-        $data[0].key = key;
+        binary_heap_ctor(heap->bin_heap_arr + arr_ind, heap->kth_data, bin_heap_data, k);
+        bin_heap_data += k;
+    }
+}
 
-        binary_optimize_update_key($bin_hp + bin_unit_ind, bin_pos, par_key);
+//--------------------------------------------------------------------------------------------------------------------------------
 
+void kth_optimized_heap_free(kth_optimized_heap *const heap)
+{
+    kth_optimized_heap_dtor(heap);
+    log_free(heap);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void kth_optimized_heap_dtor(kth_optimized_heap *const heap)
+{
+    if (heap == nullptr) return;
+
+    log_free(heap->kth_data);
+    log_free(heap->bin_unit);
+    log_free(heap->bin_heap_arr);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+bool kth_optimized_heap_insert(kth_optimized_heap *const heap, const key_t key)
+{
+    log_verify(heap != nullptr,             false);
+    log_verify(heap->size < heap->capacity, false);
+
+    SET_KEY(heap, heap->size, key)
+    heap->size++;
+
+    if (heap->size == 1) return true;
+
+    binary_heap_insert(GET_BIN_HEAP(heap, heap->size - 1), key, heap->size - 1);
+    kth_optimized_heap_sift_up(heap, heap->size - 1);
+
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+bool kth_optimized_heap_get_min(const kth_optimized_heap *const heap, key_t *const min_key)
+{
+    log_verify(heap    != nullptr, false);
+    log_verify(min_key != nullptr, false);
+    log_verify(heap->size > 0,     false);
+
+    *min_key = GET_KEY(heap, 0);
+    return true;
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+bool kth_optimized_heap_extract_min(kth_optimized_heap *const heap, key_t *const min_key /* = nullptr */)
+{
+    log_verify(heap != nullptr, false);
+    log_verify(heap->size != 0, false);
+
+    #define try_store_min_key(min_key_val)                    \
+        if (min_key != nullptr) *min_key = min_key_val;
+
+    key_t key = GET_KEY(heap, 0);
+
+    if (heap->size == 1)
+    {
+        heap->size = 0;
+        try_store_min_key(key)
         return true;
     }
 
-    binary_optimize_update_key($bin_hp +     bin_unit_ind,     bin_pos, par_key);
-    binary_optimize_update_key($bin_hp + par_bin_unit_ind, bin_par_pos,     key);
+    kth_optimized_heap_node_swap(heap, 0, heap->size - 1);
 
+    binary_heap_extract_min(GET_BIN_HEAP(heap, heap->size - 1));
+    heap->size--;
+
+    kth_optimized_heap_sift_down(heap, 0);
+
+    try_store_min_key(key)
     return true;
+
+    #undef try_store_min_key
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static bool kth_optimized_heap_sift_down(kth_optimized_heap *const hp, const int kth_pos)
+static void kth_optimized_heap_sift_up(kth_optimized_heap *const heap, const size_t kth_pos)
 {
-    log_verify(hp   != nullptr, false);
-    log_verify(kth_pos < $size, false);
+    log_assert(heap != nullptr);
+    log_assert(heap->size > kth_pos);
 
-    if (kth_pos * $k + 1 >= $size) return true;
+    if (kth_pos == 0) return;
 
-    int bin_unit_ind        = (kth_pos - 1) / $k;
-    int bin_unit_ind_child  =  kth_pos;
+    size_t par_kth_pos = GET_PAR_IND(heap, kth_pos);
 
-    bin_kth_node min_child_node     = binary_optimize_get_min($bin_hp + bin_unit_ind_child);
-    int          min_child_key      = min_child_node.key;
-
-    int     key = $data[kth_pos].key;
-    int bin_pos = $data[kth_pos].pos;
-
-    if (min_child_key < key)
+    if (GET_KEY(heap, kth_pos) < GET_KEY(heap, par_kth_pos))
     {
-                            binary_optimize_update_key($bin_hp + bin_unit_ind_child,       0,           key);
-        if (kth_pos != 0)   binary_optimize_update_key($bin_hp + bin_unit_ind      , bin_pos, min_child_key);
+        kth_optimized_heap_node_swap(heap, kth_pos, par_kth_pos);
+        kth_optimized_heap_sift_up(heap, par_kth_pos);
     }
-    return true;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// dump
-//--------------------------------------------------------------------------------------------------------------------------------
-
-void kth_optimized_heap_dump(kth_optimized_heap *const hp)
-{
-    log_tab_message(HTML_COLOR_MEDIUM_BLUE
-                    "kth_optimized_heap (addr: %p)\n" HTML_COLOR_CANCEL
-                    "{\n",                     hp);
-    if (hp == nullptr) {    log_tab_message("}\n"); return; }
-    LOG_TAB++;
-
-    log_tab_message("k           = %d\n"
-                    "size        = %d\n"
-                    "capacity    = %d\n\n", $k, $size, $capacity);
-
-    log_tab_message("data        = %p\n", $data);
-    if             ($data != nullptr) kth_optimized_heap_data_dump(hp);
-
-    log_tab_message("bin_hp_unit = %p\n", $bin_hp);
-    if             ($bin_hp != nullptr) kth_optimized_heap_unit_dump(hp);
-
-    LOG_TAB--;
-    log_tab_message("}\n");
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static void kth_optimized_heap_data_dump(kth_optimized_heap *const hp)
+static void kth_optimized_heap_sift_down(kth_optimized_heap *const heap, const size_t kth_pos)
 {
-    log_assert(hp    != nullptr);
-    log_assert($data != nullptr);
+    log_assert(heap != nullptr);
+    log_assert(heap->size < kth_pos);
 
-    log_tab_message("{\n");
-    LOG_TAB++;
+    if (GET_L_CHILD_IND(heap, kth_pos) >= heap->size) return;
 
-    log_tab_message(HTML_COLOR_MEDIUM_BLUE "index  : ");
-    for (int i = 0; i < $size; ++i) log_message("%10d ", i);
-    log_message("\n");
+    size_t min_child_kth_pos = binary_heap_get_min_ind(GET_CHILD_BIN_HEAP(heap, kth_pos));
 
-    log_tab_message(HTML_COLOR_CANCEL
-                    HTML_COLOR_DARK_ORANGE "key    : ");
-    for (int i = 0; i < $size; ++i) log_message("%10d ", $data[i].key);
-    log_tab_message("\n");
-
-    log_tab_message(HTML_COLOR_CANCEL
-                    HTML_COLOR_DARK_RED    "bin_pos: ");
-    for (int i = 0; i < $size; ++i) log_message("%10d ", $data[i].pos);
-    log_tab_message(HTML_COLOR_CANCEL "\n");
-
-    LOG_TAB--;
-    log_tab_message("}\n");
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-
-static void kth_optimized_heap_unit_dump(kth_optimized_heap *const hp)
-{
-    log_assert(hp      != nullptr);
-    log_assert($bin_hp != nullptr);
-
-    log_tab_message("{\n");
-    LOG_TAB++;
-
-    int bin_hp_unit_size = ($capacity + $k - 1) / $k;
-    log_tab_message("bin_heap_unit size = %d\n", bin_hp_unit_size);
-
-    for (int i = 0; i < bin_hp_unit_size; ++i)
+    if (GET_KEY(heap, kth_pos) < GET_KEY(heap, min_child_kth_pos))
     {
-        log_tab_message(HTML_COLOR_MEDIUM_BLUE "#%d" HTML_COLOR_CANCEL "\n", i);
-        binary_optimize_dump($bin_hp + i);
+        kth_optimized_heap_node_swap(heap, kth_pos, min_child_kth_pos);
+        kth_optimized_heap_sift_down(heap, min_child_kth_pos);
     }
-
-    LOG_TAB--;
-    log_tab_message("}\n");
-}
-
-//================================================================================================================================
-// BINARY_OPTIMAZE
-//================================================================================================================================
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// ctor
-//--------------------------------------------------------------------------------------------------------------------------------
-
-static bool binary_optimize_ctor(binary_optimize *const hp, const int capacity, bin_kth_node *const bin_data,
-                                                                                bin_kth_node *const kth_data)
-{
-    log_verify(hp       != nullptr, false);
-    log_verify(bin_data != nullptr, false);
-    log_verify(kth_data != nullptr, false);
-
-    $bin_data = bin_data;
-    $kth_data = kth_data;
-
-    $size     =        0;
-    $capacity = capacity;
-
-    return true;
-}
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// insert, erase, update
-//--------------------------------------------------------------------------------------------------------------------------------
-
-static bool binary_optimize_insert(binary_optimize *const hp, const int key, const int kth_pos)
-{
-    log_verify(hp       != nullptr, false);
-    log_verify(kth_pos >         0, false);
-    log_verify($size   < $capacity, false);
-
-    $bin_data[$size]       = {key, kth_pos};
-    $kth_data[kth_pos].pos = $size;
-
-    $size++;
-
-    return binary_optimize_sift_up(hp, $size - 1);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static bool binary_optimize_update_key(binary_optimize *const hp, const int bin_pos, const int new_key)
+static void kth_optimized_heap_node_swap(kth_optimized_heap *const heap, const size_t kth_1_pos, const size_t kth_2_pos)
 {
-    log_verify(hp !=   nullptr, false);
-    log_verify(bin_pos < $size, false);
+    log_assert(heap != nullptr);
+    log_assert(heap->size > kth_1_pos);
+    log_assert(heap->size > kth_2_pos);
+    log_assert(kth_1_pos != kth_2_pos);
 
-    int old_key = $bin_data[bin_pos].key;
-    int kth_pos = $bin_data[bin_pos].pos;
+    size_t bin_heap_1 = GET_BIN_HEAP_IND(heap, kth_1_pos);
+    size_t bin_heap_2 = GET_BIN_HEAP_IND(heap, kth_2_pos);
 
-    $bin_data[bin_pos].key = new_key;
-    $kth_data[kth_pos].key = new_key;
+    if (kth_1_pos != 0) binary_heap_erase(heap->bin_heap_arr + bin_heap_1, GET_BIN_IND(heap, kth_1_pos));
+    if (kth_2_pos != 0) binary_heap_erase(heap->bin_heap_arr + bin_heap_2, GET_BIN_IND(heap, kth_2_pos));
 
-    if (new_key > old_key)  return binary_optimize_sift_down(hp, bin_pos);
-    /* else */              return binary_optimize_sift_up  (hp, bin_pos);
-}
+    key_t key_1 = GET_KEY(heap, kth_1_pos);
+    key_t key_2 = GET_KEY(heap, kth_2_pos);
 
-//--------------------------------------------------------------------------------------------------------------------------------
-// min
-//--------------------------------------------------------------------------------------------------------------------------------
+    SET_KEY(heap, kth_1_pos, key_2);
+    SET_KEY(heap, kth_2_pos, key_1);
 
-static bin_kth_node binary_optimize_get_min(binary_optimize *const hp)
-{
-    log_verify(hp != nullptr, {0 COMMA 0});
-
-    if ($size == 0) return {INF, INF};
-
-    return $bin_data[0];
+    if (kth_1_pos != 0) binary_heap_insert(heap->bin_heap_arr + bin_heap_1, key_2, kth_1_pos);
+    if (kth_2_pos != 0) binary_heap_insert(heap->bin_heap_arr + bin_heap_2, key_1, kth_2_pos);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static bin_kth_node binary_optimize_extract_min(binary_optimize *const hp)
+#undef GET_PAR_IND
+#undef GET_L_CHILD_IND
+#undef GET_R_CHILD_IND
+
+#undef GET_KEY
+#undef GET_BIN_IND
+#undef GET_PAR_KEY
+
+#undef SET_KEY
+#undef SET_BIN_IND
+#undef SET_PAR_KEY
+
+#undef GET_BIN_HEAP_IND
+#undef GET_BIN_HEAP
+
+#undef GET_PAR_BIN_HEAP_IND
+#undef GET_PAR_BIN_HEAP
+
+#undef GET_CHILD_BIN_HEAP_IND
+#undef GET_CHILD_BIN_HEAP
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// binary_heap
+//--------------------------------------------------------------------------------------------------------------------------------
+
+#define GET_PAR_IND(      bin_pos) ((bin_pos - 1) / 2)
+#define GET_L_CHILD_IND(  bin_pos) (2*bin_pos + 1)
+#define GET_R_CHILD_IND(  bin_pos) (2*bin_pos + 1)
+
+#define GET_NODE(   heap, bin_pos) heap->bin_data[bin_pos]
+#define GET_KEY(    heap, bin_pos) GET_NODE(heap, bin_pos).key
+#define GET_KTH_IND(heap, bin_pos) GET_NODE(heap, bin_pos).pos
+#define GET_PAR_KEY(heap, bin_pos) GET_KEY(heap, GET_PAR_IND(bin_pos))
+
+#define SET_NODE(   heap, bin_pos, node_val) GET_NODE   (heap, bin_pos) = node_val;
+#define SET_KEY(    heap, bin_pos,  key_val) GET_KEY    (heap, bin_pos) =  key_val;
+#define SET_KTH_IND(heap, bin_pos,  ind_val) GET_KTH_IND(heap, bin_pos) =  ind_val;
+#define SET_PAR_KEY(heap, bin_pos,  key_val) GET_PAR_KEY(heap, bin_pos) =  key_val;
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void binary_heap_ctor(binary_heap *const heap, node_t *const kth_data,
+                                                      node_t *const bin_data,
+                                                      const  size_t capacity)
 {
-    log_verify(hp != nullptr, {0 COMMA 0});
-    log_verify($size > 0    , {0 COMMA 0});
+    log_assert(heap     != nullptr);
+    log_assert(kth_data != nullptr);
+    log_assert(bin_data != nullptr);
 
-    if ($size == 1) { $size = 0; return $bin_data[0]; }
+    heap->kth_data = kth_data;
+    heap->bin_data = bin_data;
 
-    bin_kth_node ans = $bin_data[0];          $size--;
-    bin_kth_node_swap ($bin_data, $bin_data + $size);
-
-    $kth_data[$bin_data[0].pos].pos = 0;
-
-    binary_optimize_sift_down(hp, 0);
-    return ans;
+    heap->bin_size     = 0;
+    heap->bin_capacity = capacity;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// sift
+
+static void binary_heap_insert(binary_heap *const heap, const key_t key, const size_t kth_pos)
+{
+    log_assert(heap != nullptr);
+    log_assert(heap->bin_size < heap->bin_capacity);
+
+    SET_KEY    (heap, heap->bin_size, key)
+    SET_KTH_IND(heap, heap->bin_size, kth_pos)
+
+    heap->kth_data[kth_pos].pos = heap->bin_size;
+    heap->bin_size++;
+
+    binary_heap_sift_up(heap, heap->bin_size - 1);
+}
+
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static bool binary_optimize_sift_up(binary_optimize *const hp, const int bin_pos)
+static void binary_heap_erase(binary_heap *const heap, const size_t bin_pos)
 {
-    log_verify(hp != nullptr, false);
-    log_verify(bin_pos >=  0, false);
+    log_assert(heap != nullptr);
+    log_assert(heap->bin_size > bin_pos);
 
-    if (bin_pos == 0) return true;
+    extern const key_t INF;
 
-    const int bin_par_pos = (bin_pos - 1) / 2;
-    const int kth_par_pos = $bin_data[bin_par_pos].pos;
-    const int     par_key = $bin_data[bin_par_pos].key;
+    binary_heap_decrease_key(heap, bin_pos, -INF);
+    binary_heap_extract_min (heap);
+}
 
-    const int kth_pos = $bin_data[bin_pos].pos;
-    const int     key = $bin_data[bin_pos].key;
+//--------------------------------------------------------------------------------------------------------------------------------
 
-    if (par_key > key)
+static void binary_heap_decrease_key(binary_heap *const heap, const size_t bin_pos, const key_t new_key)
+{
+    log_assert(heap != nullptr);
+    log_assert(heap->bin_size > bin_pos);
+    log_assert(heap->bin_data[bin_pos].key > new_key);
+
+    SET_KEY(heap, bin_pos, new_key)
+    binary_heap_sift_up(heap, bin_pos);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void binary_heap_extract_min(binary_heap *const heap)
+{
+    log_assert(heap != nullptr);
+    log_assert(heap->bin_size != 0);
+
+    if (heap->bin_size == 1) { heap->bin_size = 0; return; }
+
+    binary_heap_node_swap(heap, 0, heap->bin_size - 1);
+    heap->bin_size--;
+
+    binary_heap_sift_down(heap, 0);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static size_t binary_heap_get_min_ind(binary_heap *const heap)
+{
+    log_assert(heap != nullptr);
+    log_assert(heap->bin_size != 0);
+
+    return GET_KTH_IND(heap, 0);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void binary_heap_sift_up(binary_heap *const heap, const size_t bin_pos)
+{
+    log_assert(heap != nullptr);
+    log_assert(bin_pos < heap->bin_size);
+
+    if (bin_pos == 0) return;
+
+    size_t par_bin_pos = GET_PAR_IND(bin_pos);
+
+    if (GET_KEY(heap, bin_pos) < GET_KEY(heap, par_bin_pos))
     {
-        bin_kth_node_swap($bin_data + bin_par_pos, $bin_data + bin_pos);
-
-        $kth_data[kth_par_pos].pos = bin_pos;
-        $kth_data[kth_pos]    .pos = bin_par_pos;
-
-        return binary_optimize_sift_up(hp, bin_par_pos);
+        binary_heap_node_swap(heap, bin_pos, par_bin_pos);
+        binary_heap_sift_up(heap, par_bin_pos);
     }
-    return true;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static bool binary_optimize_sift_down(binary_optimize *const hp, const int bin_pos)
+static void binary_heap_sift_down(binary_heap *const heap, const size_t bin_pos)
 {
-    log_verify(hp !=   nullptr, false);
-    log_verify(bin_pos < $size, false);
+    log_assert(heap  != nullptr);
+    log_assert(heap->bin_size > bin_pos);
 
-    const int l_bin_pos = 2 *   bin_pos + 1;
-    const int r_bin_pos = 1 + l_bin_pos;
+    extern const key_t INF;
 
-    const int   kth_pos = $bin_data[  bin_pos].pos;
+    size_t l_bin_pos = GET_L_CHILD_IND(bin_pos);
+    size_t r_bin_pos = GET_R_CHILD_IND(bin_pos);
 
-    const int l_kth_pos = (l_bin_pos < $size) ? $bin_data[l_bin_pos].pos : -1;
-    const int r_kth_pos = (r_bin_pos < $size) ? $bin_data[r_bin_pos].pos : -1;
+    key_t key   =                              GET_KEY(heap,   bin_pos);
+    key_t key_l = l_bin_pos < heap->bin_size ? GET_KEY(heap, l_bin_pos) : INF;
+    key_t key_r = r_bin_pos < heap->bin_size ? GET_KEY(heap, r_bin_pos) : INF;
 
-    const int   l_key   = (l_bin_pos < $size) ? $bin_data[l_bin_pos].key : INF;
-    const int   r_key   = (r_bin_pos < $size) ? $bin_data[r_bin_pos].key : INF;
-    const int bin_key   =                       $bin_data[  bin_pos].key      ;
-
-    if (l_key <= bin_key && l_key <= r_key) {   bin_kth_node_swap($bin_data + l_bin_pos, $bin_data + bin_pos);
-
-                                                $kth_data[l_kth_pos].pos =   bin_pos;
-                                                $kth_data[  kth_pos].pos = l_bin_pos;
-
-                                                return binary_optimize_sift_down(hp, l_bin_pos);
-                                            }
-    if (r_key <= bin_key)                   {   bin_kth_node_swap($bin_data + r_bin_pos, $bin_data + bin_pos);
-
-                                                $kth_data[r_kth_pos].pos =   bin_pos;
-                                                $kth_data[  kth_pos].pos = r_bin_pos;
-
-                                                return binary_optimize_sift_down(hp, r_bin_pos);
-                                            }
-    return true;
+    if (key_l < key && key_l < key_r)
+    {
+        binary_heap_node_swap(heap, bin_pos, l_bin_pos);
+        binary_heap_sift_down(heap, l_bin_pos);
+    }
+    else if (key_r < key && key_r < key_l)
+    {
+        binary_heap_node_swap(heap, bin_pos, r_bin_pos);
+        binary_heap_sift_down(heap, r_bin_pos);
+    }
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
-// dump
-//--------------------------------------------------------------------------------------------------------------------------------
 
-static void binary_optimize_dump(binary_optimize *const hp)
+static void binary_heap_node_swap(binary_heap *const heap, const size_t bin_1_pos, const size_t bin_2_pos)
 {
-    log_tab_message(HTML_COLOR_MEDIUM_BLUE
-                    "binary_optimize (addr: %p)\n" HTML_COLOR_CANCEL
-                    "{\n",                  hp);
-    if (hp == nullptr) { log_tab_message("}\n"); return; }
-    LOG_TAB++;
+    log_assert(heap != nullptr);
+    log_assert(heap->bin_size > bin_1_pos);
+    log_assert(heap->bin_size > bin_2_pos);
+    log_assert(bin_1_pos != bin_2_pos);
 
-    log_tab_message("bin_data = %p\n", $bin_data);
-    if             ($bin_data != nullptr) binary_optimize_bin_data_dump(hp);
+    heap->kth_data[bin_1_pos].pos = bin_2_pos;
+    heap->kth_data[bin_2_pos].pos = bin_1_pos;
 
-    log_tab_message("kth_data = %p\n\n"
-                    "size     = %d\n"
-                    "capacity = %d\n", $kth_data, $size, $capacity);
-    LOG_TAB--;
-    log_tab_message("}\n");
+    node_t temp = GET_NODE(heap, bin_1_pos);
+
+    SET_NODE(heap, bin_1_pos, GET_NODE(heap, bin_2_pos))
+    SET_NODE(heap, bin_2_pos, temp);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static void binary_optimize_bin_data_dump(binary_optimize *const hp)
-{
-    log_assert(hp        != nullptr);
-    log_assert($bin_data != nullptr);
+#undef GET_PAR_IND
+#undef GET_L_CHILD_IND
+#undef GET_R_CHILD_IND
 
-    log_tab_message("{\n");
-    LOG_TAB++;
+#undef GET_NODE
+#undef GET_KEY
+#undef GET_KTH_IND
+#undef GET_PAR_KEY
 
-    log_tab_message(HTML_COLOR_MEDIUM_BLUE "index  : ");
-    for (int i = 0; i < $size; ++i) log_message("%10d ", i);
-    log_message("\n");
-
-    log_tab_message(HTML_COLOR_CANCEL
-                    HTML_COLOR_DARK_ORANGE "key    : ");
-    for (int i = 0; i < $size; ++i) log_message("%10d ", $bin_data[i].key);
-    log_tab_message("\n");
-
-    log_tab_message(HTML_COLOR_CANCEL
-                    HTML_COLOR_DARK_RED    "kth_pos: ");
-    for (int i = 0; i < $size; ++i) log_message("%10d ", $bin_data[i].pos);
-    log_tab_message(HTML_COLOR_CANCEL "\n");
-
-    LOG_TAB--;
-    log_tab_message("}\n");
-}
-
-//================================================================================================================================
-// BIN_KTH_NODE
-//================================================================================================================================
-
-//--------------------------------------------------------------------------------------------------------------------------------
-// swap
-//--------------------------------------------------------------------------------------------------------------------------------
-
-void bin_kth_node_swap(bin_kth_node *const a, bin_kth_node *const b)
-{
-    log_verify(a != nullptr, (void) 0);
-    log_verify(b != nullptr, (void) 0);
-
-    bin_kth_node temp = *a;
-
-    *a =   *b;
-    *b = temp;
-}
+#undef SET_NODE
+#undef SET_KEY
+#undef SET_KTH_IND
+#undef SET_PAR_KEY
