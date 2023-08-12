@@ -1,11 +1,13 @@
-#include "stdio.h"
-#include "stdlib.h"
-#include "string.h"
-#include "ctype.h"
-#include "math.h"
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <ctype.h>
+#include <math.h>
 
-#define NLOG
-#define LOG_NVERIFY
+#define NDEBUG
+#define NVERIFY
+#define LOG_NLEAK
+#define LOG_NTRACE
 #include "../../../../lib/logs/log.h"
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -14,8 +16,8 @@
 
 #include "binary_heap.h"
 
-static bool bin_heap_sift_up  (binary_heap *const hp, const int ind);
-static bool bin_heap_sift_down(binary_heap *const hp, const int ind);
+static bool bin_heap_sift_up  (binary_heap *const hp, const size_t ind);
+static bool bin_heap_sift_down(binary_heap *const hp, const size_t ind);
 
 static void int_swap(int *const a, int *const b);
 
@@ -23,46 +25,47 @@ static void int_swap(int *const a, int *const b);
 // dsl
 //--------------------------------------------------------------------------------------------------------------------------------
 
-#define $data       hp->data
-#define $size       hp->size
-#define $capacity   hp->capacity
+#define $data       (hp->data)
+#define $size       (hp->size)
+#define $capacity   (hp->capacity)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // body
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool bin_heap_ctor(binary_heap *const hp, const int capacity)
+binary_heap *bin_heap_new(const size_t capacity)
+{
+    binary_heap *hp = (binary_heap *) log_calloc(1, sizeof(binary_heap));
+    log_verify(hp != nullptr, nullptr);
+
+    if (!bin_heap_ctor(hp, capacity)) { log_free(hp); return nullptr; }
+    return hp;
+}
+
+bool bin_heap_ctor(binary_heap *const hp, const size_t capacity)
 {
     log_verify(hp != nullptr, false);
-    log_verify(capacity > 0 , false);
 
     $data = (int *) log_calloc((size_t) capacity + 1 /* fictional */, sizeof(int));
-
     log_verify($data != nullptr, false);
 
-    $capacity = capacity + 1;
-    $size     =            1;
+    $capacity = capacity + 1; // fictional
+    $size     =            1; // fictional
 
     return true;
 }
 
-bool bin_heap_ctor(binary_heap *const hp, const int capacity, int *const data)
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void bin_heap_free(binary_heap *const hp)
 {
-    log_verify(hp   != nullptr, false);
-    log_verify(data != nullptr, false);
-
-    $data = data;
-
-    $capacity = capacity + 1 /* fictional */;
-    $size     =            1 /* fictioanl */;
-
-    return true;
+    bin_heap_dtor(hp);
+    log_free     (hp);
 }
 
 void bin_heap_dtor(binary_heap *const hp)
 {
     if (hp == nullptr) return;
-
     log_free($data);
 }
 
@@ -84,7 +87,7 @@ bool bin_heap_insert(binary_heap *const hp, const int val)
 int bin_heap_get_min(binary_heap *const hp)
 {
     log_verify(hp    != nullptr, 0);
-    log_verify($size >        0, 0);
+    log_verify($size !=       0, 0);
 
     return $data[1];
 }
@@ -92,13 +95,13 @@ int bin_heap_get_min(binary_heap *const hp)
 int bin_heap_extract_min(binary_heap *const hp)
 {
     log_verify(hp    != nullptr, 0);
-    log_verify($size >        0, 0);
+    log_verify($size !=       0, 0);
 
     int ans = $data[1];
     int_swap ($data + 1, $data + $size - 1);
     $size--;
 
-    if ($size == 0) return true;
+    if ($size == 0) return ans;
 
     bin_heap_sift_down(hp, 1);
     return ans;
@@ -106,31 +109,29 @@ int bin_heap_extract_min(binary_heap *const hp)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-bool bin_heap_sort(void *const _hp, int *const arr, const int arr_size)
+void bin_heap_sort(int *const arr, const size_t size)
 {
-    log_verify(_hp != nullptr, false);
     log_verify(arr != nullptr, false);
-    log_verify(arr_size   > 0, false);
 
-    binary_heap *const hp = (binary_heap *) _hp;
+    binary_heap *hp = bin_heap_new(size);
 
-    for (int i = 0; i < arr_size; ++i)          bin_heap_insert     (hp, arr[i]);
-    for (int i = 0; i < arr_size; ++i) arr[i] = bin_heap_extract_min(hp);
+    for (size_t i = 0; i < size; ++i)          bin_heap_insert(hp, arr[i]);
+    for (size_t i = 0; i < size; ++i) arr[i] = bin_heap_extract_min(hp);
 
-    return true;
+    bin_heap_free(hp);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static bool bin_heap_sift_up(binary_heap *const hp, const int ind)
+static bool bin_heap_sift_up(binary_heap *const hp, const size_t ind)
 {
     log_verify(hp  != nullptr, false);
-    log_verify(ind >        0, false);
+    log_verify(ind !=       0, false);
     log_verify(ind <=   $size, false);
 
     if (ind == 1) return true;
 
-    const int par_ind = ind / 2;
+    size_t par_ind = ind / 2;
     if ($data[par_ind] > $data[ind])
     {
         int_swap($data + par_ind, $data + ind);
@@ -139,11 +140,11 @@ static bool bin_heap_sift_up(binary_heap *const hp, const int ind)
     return true;
 }
 
-static bool bin_heap_sift_down(binary_heap *const hp, const int ind)
+static bool bin_heap_sift_down(binary_heap *const hp, const size_t ind)
 {
-    log_verify(hp != nullptr, false);
-    log_verify(ind >       0, false);
-    log_verify(ind <=  $size, false);
+    log_verify(hp  != nullptr, false);
+    log_verify(ind !=       0, false);
+    log_verify(ind <=   $size, false);
 
     int left  = (2*ind     >= $size) ? (int) 2e9 : $data[2*ind];
     int right = (2*ind + 1 >= $size) ? (int) 2e9 : $data[2*ind + 1];
