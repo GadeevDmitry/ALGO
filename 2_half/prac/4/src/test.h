@@ -22,18 +22,18 @@
 
 #define CSV_SEP ";"
 
-#define CORRECTNESS
+//#define CORRECTNESS
 
 //#define BINARY
 //#define KTH
-//#define KTH_OPTIMIZED
+#define KTH_OPTIMIZED
 
 //================================================================================================================================
 
 const int    MAX_ARR_VALUE  = 100;
 const size_t K_HEAP_PARAM[] = {5, 10, 25, 50, 100, 200, 300, 400, 500, 1000};
 
-const size_t SIZE_MIN     =      1'000;
+const size_t SIZE_MIN     =    100'000;
 const size_t SIZE_MAX     = 10'000'000;
 const size_t SIZE_STEP    =    100'000;
 const size_t AVERAGED_NUM = 5;

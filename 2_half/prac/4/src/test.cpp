@@ -17,7 +17,7 @@ int main()
     return 0;
     #endif
 
-    FILE *output = fopen("../data/binary.csv", "w");
+    FILE *output = fopen("../data/kth_optimized.csv", "w");
     log_assert(output != nullptr);
 
     fprintf(output, "size" CSV_SEP " ");
