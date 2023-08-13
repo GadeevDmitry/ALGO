@@ -5,43 +5,12 @@
 
 //================================================================================================================================
 
-typedef int key_t;
+typedef int                       key_t;
+typedef struct kth_optimized_heap kth_optimized_heap;
 
-//--------------------------------------------------------------------------------------------------------------------------------
+//================================================================================================================================
 
-typedef struct
-{
-    key_t  key;
-    size_t pos;
-}
-node_t;
-
-//--------------------------------------------------------------------------------------------------------------------------------
-
-typedef struct
-{
-    node_t *kth_data;
-    node_t *bin_data;
-
-    size_t  bin_size;
-    size_t  bin_capacity;
-}
-binary_heap;
-
-//--------------------------------------------------------------------------------------------------------------------------------
-
-typedef struct
-{
-    node_t *kth_data;
-    node_t *bin_unit;
-
-    size_t k;
-    size_t size;
-    size_t capacity;
-
-    binary_heap *bin_heap_arr;
-}
-kth_optimized_heap;
+const key_t INF = 2'000'000'000;
 
 //================================================================================================================================
 
@@ -56,7 +25,11 @@ void                kth_optimized_heap_dtor       (      kth_optimized_heap *con
 
 bool                kth_optimized_heap_insert     (      kth_optimized_heap *const heap, const key_t key);
 
+void                kth_optimized_heap_dump       (const kth_optimized_heap *const heap);
+
 bool                kth_optimized_heap_get_min    (const kth_optimized_heap *const heap, key_t *const min_key);
 bool                kth_optimized_heap_extract_min(      kth_optimized_heap *const heap, key_t *const min_key = nullptr);
+
+void                kth_optimized_heap_sort       (int *const arr, const size_t size, const size_t k);
 
 #endif // K_OPTIMIZED_HEAP_H

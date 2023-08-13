@@ -5,13 +5,50 @@
 #include <ctype.h>
 #include <math.h>
 
-//#define NDEBUG
-//#define NVERIFY
+#define NDEBUG
+#define NVERIFY
 #define LOG_NLEAK
 #define LOG_NTRACE
 #include "../../../../lib/logs/log.h"
+#include "../../../../lib/algorithm/algorithm.h"
 
 #include "k_optimized_heap.h"
+
+//================================================================================================================================
+
+typedef struct
+{
+    key_t  key;
+    size_t pos;
+}
+node_t;
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+typedef struct
+{
+    node_t *kth_data;
+    node_t *bin_data;
+
+    size_t  bin_size;
+    size_t  bin_capacity;
+}
+binary_heap;
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+typedef struct kth_optimized_heap
+{
+    node_t *kth_data;
+    node_t *bin_unit;
+
+    size_t k;
+    size_t size;
+    size_t capacity;
+
+    binary_heap *bin_heap_arr;
+}
+kth_optimized_heap;
 
 //================================================================================================================================
 
@@ -19,27 +56,40 @@
 // kth_optimized_heap
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static void kth_optimized_heap_sift_up  (kth_optimized_heap *const heap, const size_t kth_pos);
-static void kth_optimized_heap_sift_down(kth_optimized_heap *const heap, const size_t kth_pos);
-static void kth_optimized_heap_node_swap(kth_optimized_heap *const heap, const size_t kth_1_pos, const size_t kth_2_pos);
+static void kth_optimized_heap_sift_up                   (      kth_optimized_heap *const heap, const size_t kth_pos);
+static void kth_optimized_heap_sift_down                 (      kth_optimized_heap *const heap, const size_t kth_pos);
+static void kth_optimized_heap_node_swap                 (      kth_optimized_heap *const heap, const size_t kth_1_pos, const size_t kth_2_pos);
+
+static void kth_optimized_heap_dump_kth_data             (const kth_optimized_heap *const heap);
+static void kth_optimized_heap_dump_kth_data_bin_heap_ind(const kth_optimized_heap *const heap);
+static void kth_optimized_heap_dump_bin_heap_arr         (const kth_optimized_heap *const heap);
 
 //--------------------------------------------------------------------------------------------------------------------------------
 // binary_heap
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static void   binary_heap_ctor        (binary_heap *const heap, node_t *const kth_data, node_t *const bin_data, const  size_t capacity);
+static void   binary_heap_ctor        (      binary_heap *const heap, node_t *const kth_data, node_t *const bin_data, const  size_t capacity);
 
-static void   binary_heap_insert      (binary_heap *const heap, const key_t key, const size_t kth_pos);
-static void   binary_heap_erase       (binary_heap *const heap,                  const size_t bin_pos);
+static void   binary_heap_insert      (      binary_heap *const heap, const key_t key, const size_t kth_pos);
+static void   binary_heap_erase       (      binary_heap *const heap,                  const size_t bin_pos);
 
-static void   binary_heap_decrease_key(binary_heap *const heap, const size_t bin_pos, const key_t new_key);
+static void   binary_heap_decrease_key(      binary_heap *const heap, const size_t bin_pos, const key_t new_key);
 
-static void   binary_heap_extract_min (binary_heap *const heap);
-static size_t binary_heap_get_min_ind (binary_heap *const heap);
+static void   binary_heap_extract_min (      binary_heap *const heap);
+static size_t binary_heap_get_min_ind (const binary_heap *const heap);
+
+static void   binary_heap_dump        (const binary_heap *const heap);
 
 static void   binary_heap_sift_up     (binary_heap *const heap, const size_t bin_pos);
 static void   binary_heap_sift_down   (binary_heap *const heap, const size_t bin_pos);
 static void   binary_heap_node_swap   (binary_heap *const heap, const size_t bin_1_pos, const size_t bin_2_pos);
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// node_t
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void node_arr_dump      (const node_t *const node_arr, const size_t arr_size);
+static void node_arr_dump_field(const node_t *const node_arr, const size_t arr_size, const bool is_key);
 
 //================================================================================================================================
 
@@ -94,19 +144,21 @@ bool kth_optimized_heap_ctor(kth_optimized_heap *const heap, const size_t k, con
     heap->size     = 0;
     heap->capacity = capacity;
 
-    size_t bin_heap_arr_size = (capacity + k - 1) / k;
+    size_t bin_heap_arr_capacity = (capacity + k - 1) / k;
 
-    heap->kth_data     = (node_t *)      log_calloc(capacity,          sizeof(node_t));
-    heap->bin_unit     = (node_t *)      log_calloc(capacity,          sizeof(node_t));
-    heap->bin_heap_arr = (binary_heap *) log_calloc(bin_heap_arr_size, sizeof(binary_heap));
+    heap->kth_data     = (node_t *)      log_calloc(capacity,              sizeof(node_t));
+    heap->bin_unit     = (node_t *)      log_calloc(capacity,              sizeof(node_t));
+    heap->bin_heap_arr = (binary_heap *) log_calloc(bin_heap_arr_capacity, sizeof(binary_heap));
 
     node_t *bin_heap_data = heap->bin_unit;
 
-    for (size_t arr_ind = 0; arr_ind < bin_heap_arr_size; ++arr_ind)
+    for (size_t arr_ind = 0; arr_ind < bin_heap_arr_capacity; ++arr_ind)
     {
         binary_heap_ctor(heap->bin_heap_arr + arr_ind, heap->kth_data, bin_heap_data, k);
         bin_heap_data += k;
     }
+
+    return true;
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -179,7 +231,7 @@ bool kth_optimized_heap_extract_min(kth_optimized_heap *const heap, key_t *const
 
     kth_optimized_heap_node_swap(heap, 0, heap->size - 1);
 
-    binary_heap_extract_min(GET_BIN_HEAP(heap, heap->size - 1));
+    binary_heap_erase(GET_BIN_HEAP(heap, heap->size - 1), GET_BIN_IND(heap, heap->size - 1));
     heap->size--;
 
     kth_optimized_heap_sift_down(heap, 0);
@@ -188,6 +240,107 @@ bool kth_optimized_heap_extract_min(kth_optimized_heap *const heap, key_t *const
     return true;
 
     #undef try_store_min_key
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void kth_optimized_heap_sort(int *const arr, const size_t size, const size_t k)
+{
+    log_verify(arr != nullptr, (void) 0);
+
+    kth_optimized_heap *heap = kth_optimized_heap_new(k, size);
+
+    for (size_t i = 0; i < size; ++i) kth_optimized_heap_insert(heap, (key_t) arr[i]);
+    for (size_t i = 0; i < size; ++i) kth_optimized_heap_extract_min(heap, arr + i);
+
+    kth_optimized_heap_free(heap);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+void kth_optimized_heap_dump(const kth_optimized_heap *const heap)
+{
+    log_verify(heap != nullptr, (void) 0);
+
+    log_tab_service_message("kth_optimized_heap (addr: %p)\n"
+                            "{", "\n", heap);
+    LOG_TAB++;
+
+    usual_field_dump("k       ", "%lu", heap->k);
+    usual_field_dump("size    ", "%lu", heap->size);
+    usual_field_dump("capacity", "%lu", heap->capacity);
+    log_message("\n");
+
+    log_tab_service_message("kth_data\n"
+                            "{", "\n");
+    LOG_TAB++;
+    kth_optimized_heap_dump_kth_data(heap);
+    LOG_TAB--;
+
+    log_tab_service_message("}", "\n\n");
+
+    log_tab_service_message("bin_heap_arr\n"
+                            "{", "\n");
+    LOG_TAB++;
+    kth_optimized_heap_dump_bin_heap_arr(heap);
+    LOG_TAB--;
+
+    log_tab_service_message("}", "\n");
+
+    LOG_TAB--;
+    log_tab_service_message("}", "\n\n");
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void kth_optimized_heap_dump_kth_data(const kth_optimized_heap *const heap)
+{
+    log_assert(heap != nullptr);
+
+    kth_optimized_heap_dump_kth_data_bin_heap_ind(heap);
+    node_arr_dump(heap->kth_data, heap->size);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void kth_optimized_heap_dump_kth_data_bin_heap_ind(const kth_optimized_heap *const heap)
+{
+    log_assert(heap != nullptr);
+
+    log_tab_service_message("bin_heap_ind: ", "");
+
+    if (heap->size == 0) { log_message("\n"); return; }
+
+    log_warning_message("   #", " ");
+
+    for (size_t ind = 1; ind < heap->size; ++ind)
+    {
+        log_service_message("%4lu", " ", GET_BIN_HEAP_IND(heap, ind));
+    }
+
+    log_message("\n");
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void kth_optimized_heap_dump_bin_heap_arr(const kth_optimized_heap *const heap)
+{
+    log_assert(heap != nullptr);
+
+    if (heap->size <= 1) return;
+
+    size_t bin_heap_arr_size = GET_BIN_HEAP_IND(heap, heap->size - 1) + 1;
+
+    for (size_t ind = 0; ind < bin_heap_arr_size; ++ind)
+    {
+        log_tab_service_message("binary_heap #%lu\n"
+                                "{", "\n",    ind);
+        LOG_TAB++;
+        binary_heap_dump(heap->bin_heap_arr + ind);
+        LOG_TAB--;
+
+        log_tab_service_message("}", "\n");
+    }
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -213,13 +366,13 @@ static void kth_optimized_heap_sift_up(kth_optimized_heap *const heap, const siz
 static void kth_optimized_heap_sift_down(kth_optimized_heap *const heap, const size_t kth_pos)
 {
     log_assert(heap != nullptr);
-    log_assert(heap->size < kth_pos);
+    log_assert(heap->size > kth_pos);
 
     if (GET_L_CHILD_IND(heap, kth_pos) >= heap->size) return;
 
     size_t min_child_kth_pos = binary_heap_get_min_ind(GET_CHILD_BIN_HEAP(heap, kth_pos));
 
-    if (GET_KEY(heap, kth_pos) < GET_KEY(heap, min_child_kth_pos))
+    if (GET_KEY(heap, kth_pos) > GET_KEY(heap, min_child_kth_pos))
     {
         kth_optimized_heap_node_swap(heap, kth_pos, min_child_kth_pos);
         kth_optimized_heap_sift_down(heap, min_child_kth_pos);
@@ -280,7 +433,7 @@ static void kth_optimized_heap_node_swap(kth_optimized_heap *const heap, const s
 
 #define GET_PAR_IND(      bin_pos) ((bin_pos - 1) / 2)
 #define GET_L_CHILD_IND(  bin_pos) (2*bin_pos + 1)
-#define GET_R_CHILD_IND(  bin_pos) (2*bin_pos + 1)
+#define GET_R_CHILD_IND(  bin_pos) (2*bin_pos + 2)
 
 #define GET_NODE(   heap, bin_pos) heap->bin_data[bin_pos]
 #define GET_KEY(    heap, bin_pos) GET_NODE(heap, bin_pos).key
@@ -344,7 +497,7 @@ static void binary_heap_decrease_key(binary_heap *const heap, const size_t bin_p
 {
     log_assert(heap != nullptr);
     log_assert(heap->bin_size > bin_pos);
-    log_assert(heap->bin_data[bin_pos].key > new_key);
+    log_assert(GET_KEY(heap, bin_pos) > new_key);
 
     SET_KEY(heap, bin_pos, new_key)
     binary_heap_sift_up(heap, bin_pos);
@@ -367,12 +520,24 @@ static void binary_heap_extract_min(binary_heap *const heap)
 
 //--------------------------------------------------------------------------------------------------------------------------------
 
-static size_t binary_heap_get_min_ind(binary_heap *const heap)
+static size_t binary_heap_get_min_ind(const binary_heap *const heap)
 {
     log_assert(heap != nullptr);
     log_assert(heap->bin_size != 0);
 
     return GET_KTH_IND(heap, 0);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void binary_heap_dump(const binary_heap *const heap)
+{
+    log_assert(heap != nullptr);
+
+    usual_field_dump("size    ", "%lu", heap->bin_size);
+    usual_field_dump("capacity", "%lu", heap->bin_capacity);
+
+    node_arr_dump(heap->bin_data, heap->bin_size);
 }
 
 //--------------------------------------------------------------------------------------------------------------------------------
@@ -409,12 +574,12 @@ static void binary_heap_sift_down(binary_heap *const heap, const size_t bin_pos)
     key_t key_l = l_bin_pos < heap->bin_size ? GET_KEY(heap, l_bin_pos) : INF;
     key_t key_r = r_bin_pos < heap->bin_size ? GET_KEY(heap, r_bin_pos) : INF;
 
-    if (key_l < key && key_l < key_r)
+    if (key_l < key && key_l <= key_r)
     {
         binary_heap_node_swap(heap, bin_pos, l_bin_pos);
         binary_heap_sift_down(heap, l_bin_pos);
     }
-    else if (key_r < key && key_r < key_l)
+    else if (key_r < key && key_r <= key_l)
     {
         binary_heap_node_swap(heap, bin_pos, r_bin_pos);
         binary_heap_sift_down(heap, r_bin_pos);
@@ -430,8 +595,8 @@ static void binary_heap_node_swap(binary_heap *const heap, const size_t bin_1_po
     log_assert(heap->bin_size > bin_2_pos);
     log_assert(bin_1_pos != bin_2_pos);
 
-    heap->kth_data[bin_1_pos].pos = bin_2_pos;
-    heap->kth_data[bin_2_pos].pos = bin_1_pos;
+    heap->kth_data[GET_KTH_IND(heap, bin_1_pos)].pos = bin_2_pos;
+    heap->kth_data[GET_KTH_IND(heap, bin_2_pos)].pos = bin_1_pos;
 
     node_t temp = GET_NODE(heap, bin_1_pos);
 
@@ -454,3 +619,31 @@ static void binary_heap_node_swap(binary_heap *const heap, const size_t bin_1_po
 #undef SET_KEY
 #undef SET_KTH_IND
 #undef SET_PAR_KEY
+
+//--------------------------------------------------------------------------------------------------------------------------------
+// node_t
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void node_arr_dump(const node_t *const node_arr, const size_t arr_size)
+{
+    node_arr_dump_field(node_arr, arr_size, true);
+    node_arr_dump_field(node_arr, arr_size, false);
+}
+
+//--------------------------------------------------------------------------------------------------------------------------------
+
+static void node_arr_dump_field(const node_t *const node_arr, const size_t arr_size, const bool is_key)
+{
+    log_assert(node_arr != nullptr);
+
+    if (is_key) log_tab_service_message("key         : ", "");
+    else        log_tab_service_message("pos         : ", "");
+
+    for (size_t ind = 0; ind < arr_size; ++ind)
+    {
+        if (is_key) log_message("%4d " , node_arr[ind].key);
+        else        log_message("%4lu ", node_arr[ind].pos);
+    }
+
+    log_message("\n");
+}
