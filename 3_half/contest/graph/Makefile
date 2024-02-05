@@ -19,6 +19,9 @@ e_test:
 f_contest:
 f_test:
 
+g_contest:
+g_test:
+
 h_contest:
 h_test:
 
