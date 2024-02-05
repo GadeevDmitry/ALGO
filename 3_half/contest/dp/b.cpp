@@ -1,7 +1,9 @@
-#include <assert.h>
 #include <stdio.h>
+#include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+
+//==================================================================================================
 
 #define MATRIX_INDEX(matrix, size, y, x) *(matrix + size*y + x)
 
@@ -9,7 +11,47 @@ typedef unsigned long long ull;
 
 const ull MOD = 1000003;
 
-void matrix_mul(const ull *matrix_1, const ull *matrix_2, ull *const matrix_res, const size_t n)
+//==================================================================================================
+
+static ull solve(const ull n);
+
+static void matrix_mul(const ull *matrix_1, const ull *matrix_2, ull *const matrix_res, const size_t n);
+static void matrix_pow(const ull *matrix, ull *const matrix_res, const size_t n, const size_t p);
+
+//==================================================================================================
+
+int main()
+{
+    ull n = 0;
+    if (scanf("%llu", &n) != 1)
+        return 1;
+
+    printf("%llu\n", solve(n));
+}
+
+//--------------------------------------------------------------------------------------------------
+
+static ull solve(const ull n)
+{
+    if (n == 1)
+        return 1;
+
+    const ull dp_base[5][5] = {
+        {1, 1, 1, 1, 1},
+        {1, 0, 0, 0, 0},
+        {0, 1, 0, 0, 0},
+        {0, 0, 1, 0, 0},
+        {0, 0, 0, 1, 0}};
+
+    ull dp_res [5][5] = {};
+    matrix_pow((ull *) dp_base, (ull *) dp_res, 5, n - 1);
+
+    return dp_res[0][0];
+}
+
+//--------------------------------------------------------------------------------------------------
+
+static void matrix_mul(const ull *matrix_1, const ull *matrix_2, ull *const matrix_res, const size_t n)
 {
     assert(matrix_1 != matrix_res);
     assert(matrix_2 != matrix_res);
@@ -27,7 +69,9 @@ void matrix_mul(const ull *matrix_1, const ull *matrix_2, ull *const matrix_res,
     }
 }
 
-void matrix_pow(const ull *matrix, ull *const matrix_res, const size_t n, const size_t p)
+//--------------------------------------------------------------------------------------------------
+
+static void matrix_pow(const ull *matrix, ull *const matrix_res, const size_t n, const size_t p)
 {
     assert(matrix != matrix_res);
     assert(p > 0);
@@ -49,28 +93,4 @@ void matrix_pow(const ull *matrix, ull *const matrix_res, const size_t n, const 
 
     if (p % 2) matrix_mul((ull *) matrix_same, (ull *) matrix_recursive, matrix_res, n);
     else       memcpy    (matrix_res, matrix_recursive, n*n*sizeof(ull));
-}
-
-int main()
-{
-    ull n;
-    if (scanf("%llu", &n) != 1) return 1;
-
-    if (n == 1)
-    {
-        printf("1\n");
-        return 0;
-    }
-
-    ull dp_base[5][5] =
-        {{1, 1, 1, 1, 1},
-         {1, 0, 0, 0, 0},
-         {0, 1, 0, 0, 0},
-         {0, 0, 1, 0, 0},
-         {0, 0, 0, 1, 0}};
-
-    ull dp_res [5][5] = {};
-    matrix_pow((ull *) dp_base, (ull *) dp_res, 5, n - 1);
-
-    printf("%llu\n", dp_res[0][0]);
 }
