@@ -4,6 +4,9 @@ CFLAGS_RELEASE := -D NDEBUG -std=c++20 -O2
 a_contest:
 a_test:
 
+d_contest:
+d_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS_RELEASE) $^ -o $@
 %_test: %.cpp
