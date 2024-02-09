@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <vector>
 
-#define int long long
-
 const int INF       = 100000;
 const int MINUS_INF = -1e9;
 
@@ -11,16 +9,18 @@ static void recovery(int from, int to, std::vector<std::vector<int>> &p, std::ve
 signed main()
 {
     int n = 0;
-    scanf("%lld", &n);
+    scanf("%d", &n);
 
-    std::vector<std::vector<int>> d(n, std::vector<int> (n));
-    std::vector<std::vector<int>> p(n, std::vector<int> (n, -1));
+    std::vector<std::vector<int>> d1(n, std::vector<int> (n));
+    std::vector<std::vector<int>> d2(n, std::vector<int> (n));
+    std::vector<std::vector<int>> p (n, std::vector<int> (n, -1));
 
     for (int i = 0; i < n; ++i)
     {
         for (int j = 0; j < n; ++j)
         {
-            scanf("%lld", &(d[i][j]));
+            scanf("%d", &(d1[i][j]));
+            d2[i][j] = d1[i][j];
         }
     }
 
@@ -32,36 +32,48 @@ signed main()
             {
                 if (i == k || j == k) continue;
 
-                if (d[i][k] < INF && d[k][j] < INF)
+                auto &last = (k % 2 == 0) ? d2 : d1;
+                auto &next = (k % 2 == 0) ? d1 : d2;
+
+                if (last[i][k] < INF && last[k][j] < INF)
                 {
-                    if (d[i][j] >= d[i][k] + d[k][j])
+                    if (last[i][j] >= last[i][k] + last[k][j])
                     {
-                        d[i][j] = d[i][k] + d[k][j];
-                        d[i][j] = std::max(d[i][j], MINUS_INF);
-                        p[i][j] = (p[i][k] == -1) ? k : p[i][k];
+                        next[i][j] = last[i][k] + last[k][j];
+                        next[i][j] = std::max(next[i][j], MINUS_INF);
+
+                        p[i][j] = k;
+                    }
+                    else
+                    {
+                        next[i][j] = last[i][j];
                     }
                 }
             }
         }
     }
 
+    auto &cur = (n % 2 == 0) ? d2 : d1;
+
     for (int i = 0; i < n; ++i)
     {
-        if (d[i][i] < 0)
+        if (cur[i][i] < 0)
         {
             printf("YES\n");
 /*
-            printf("i = %d\n", i);
+            printf("i = %d\n\n", i);
 
+            printf("dist:\n");
             for (int i = 0; i < n; ++i)
             {
                 for (int j = 0; j < n; ++j)
                 {
-                    printf("%d ", d[i][j]);
+                    printf("%d ", cur[i][j]);
                 }
                 printf("\n");
             }
 
+            printf("\npar\n");
             for (int i = 0; i < n; ++i)
             {
                 for (int j = 0; j < n; ++j)
@@ -70,14 +82,14 @@ signed main()
                 }
                 printf("\n");
             }
+            printf("\n");
 */
             std::vector<int> ans;
             ans.push_back(i);
-            for (int next = p[i][i]; next != i && next != -1; next = p[next][i])
-                ans.push_back(next);
+            recovery(i, i, p, ans);
             ans.push_back(i);
 
-            printf("%d\n", ans.size());
+            printf("%lu\n", ans.size());
             for (auto elem : ans)
                 printf("%d ", elem + 1);
             printf("\n");
