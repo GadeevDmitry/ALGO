@@ -7,6 +7,15 @@ a_test:
 d_contest:
 d_test:
 
+e_contest:
+e_test:
+
+f_contest:
+f_test:
+
+j_contest:
+j_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS_RELEASE) $^ -o $@
 %_test: %.cpp
