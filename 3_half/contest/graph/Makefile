@@ -34,6 +34,9 @@ m_test:
 n_contest:
 n_test:
 
+p_contest:
+p_test:
+
 %_contest: %.cpp
 	g++ $(CFLAGS_RELEASE) $^ -o $@
 %_test: %.cpp
