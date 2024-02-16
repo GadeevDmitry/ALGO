@@ -8,12 +8,13 @@
 #define MATRIX_INDEX(matrix, size, y, x) *(matrix + size*y + x)
 
 typedef unsigned long long ull;
+typedef unsigned char      uch;
 
 const ull MOD = 1000003;
 
 //==================================================================================================
 
-static ull solve(const ull n);
+static ull get_path_num(const ull n);
 
 static void matrix_mul(const ull *matrix_1, const ull *matrix_2, ull *const matrix_res, const size_t n);
 static void matrix_pow(const ull *matrix, ull *const matrix_res, const size_t n, const size_t p);
@@ -26,24 +27,25 @@ int main()
     if (scanf("%llu", &n) != 1)
         return 1;
 
-    printf("%llu\n", solve(n));
+    printf("%llu\n", get_path_num(n));
 }
 
 //--------------------------------------------------------------------------------------------------
 
-static ull solve(const ull n)
+static ull get_path_num(const ull n)
 {
     if (n == 1)
         return 1;
 
-    const ull dp_base[5][5] = {
+    const uch max_jmp_len = 5;
+    const ull dp_base[max_jmp_len][max_jmp_len] = {
         {1, 1, 1, 1, 1},
         {1, 0, 0, 0, 0},
         {0, 1, 0, 0, 0},
         {0, 0, 1, 0, 0},
         {0, 0, 0, 1, 0}};
 
-    ull dp_res [5][5] = {};
+    ull dp_res[max_jmp_len][max_jmp_len] = {};
     matrix_pow((ull *) dp_base, (ull *) dp_res, 5, n - 1);
 
     return dp_res[0][0];
