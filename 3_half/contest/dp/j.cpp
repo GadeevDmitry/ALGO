@@ -3,6 +3,8 @@
 #include <cstring>
 #include <vector>
 
+#define INPUT_ERROR 1
+
 //==================================================================================================
 
 static bool input(
@@ -11,12 +13,9 @@ static bool input(
 
 static bool str_scanf(char *s);
 
-static void output(
-    const size_t gcs_len,
-    const std::vector<int> &ans1,
-    const std::vector<int> &ans2);
+static void fprintf_arr(FILE *stream, const std::vector<int> &arr);
 
-static size_t solve(
+static size_t get_lcs(
     const char *s1, const size_t s1_len,
     const char *s2, const size_t s2_len,
 
@@ -30,13 +29,15 @@ int main()
     char s1[1001] = ""; size_t s1_len = 0;
     char s2[1001] = ""; size_t s2_len = 0;
     if (!input(s1, &s1_len, s2, &s2_len))
-        return 1;
+        return INPUT_ERROR;
 
     std::vector<int> ans1;
     std::vector<int> ans2;
-    size_t gcs_len = solve(s1, s1_len, s2, s2_len, ans1, ans2);
+    size_t lcs_len = get_lcs(s1, s1_len, s2, s2_len, ans1, ans2);
 
-    output(gcs_len, ans1, ans2);
+    printf("%lu\n", ans1.size());
+    fprintf_arr(stdout, ans1);
+    fprintf_arr(stdout, ans2);
 }
 
 //--------------------------------------------------------------------------------------------------
@@ -59,52 +60,43 @@ static bool input(
 static bool str_scanf(char *s)
 {
     int len = 0;
-    int res = scanf("%1001s%n", s, &len);
+    int res = scanf("%1000s%n", s, &len);
 
-    return res == 1 && len < 1001;
+    return res == 1 && len <= 1000;
 }
 
 //--------------------------------------------------------------------------------------------------
 
-static void output(
-    const size_t gcs_len,
-    const std::vector<int> &ans1,
-    const std::vector<int> &ans2)
+static void fprintf_arr(FILE *stream, const std::vector<int> &arr)
 {
-    printf("%lu\n", gcs_len);
-
-    for (int i = 0; i < gcs_len; ++i)
-        printf("%d ", ans1[i]);
-    printf("\n");
-
-    for (int i = 0; i < gcs_len; ++i)
-        printf("%d ", ans2[i]);
-    printf("\n");
+    for (auto elem : arr)
+        fprintf(stream, "%d ", elem);
+    fprintf(stream, "\n");
 }
 
 //--------------------------------------------------------------------------------------------------
 
-static size_t solve(
+static size_t get_lcs(
     const char *s1, const size_t s1_len,
     const char *s2, const size_t s2_len,
 
     std::vector<int> &ans1,
     std::vector<int> &ans2)
 {
-    int gcs[s1_len + 1][s2_len + 1];
+    int lcs[s1_len + 1][s2_len + 1];
 
     for (int i = 0; i <= s1_len; ++i)
         for (int j = 0; j <= s2_len; ++j)
-            gcs[i][j] = 0;
+            lcs[i][j] = 0;
 
     for (int i = 1; i <= s1_len; ++i)
     {
         for (int j = 1; j <= s2_len; ++j)
         {
-            gcs[i][j] = std::max(gcs[i - 1][j], gcs[i][j - 1]);
+            lcs[i][j] = std::max(lcs[i - 1][j], lcs[i][j - 1]);
 
             if (s1[i - 1] == s2[j - 1])
-                gcs[i][j] = std::max(gcs[i][j], gcs[i - 1][j - 1] + 1);
+                lcs[i][j] = std::max(lcs[i][j], lcs[i - 1][j - 1] + 1);
         }
     }
 
@@ -113,7 +105,7 @@ static size_t solve(
 
     while (p1 != 0 && p2 != 0)
     {
-        if ((gcs[p1][p2] == gcs[p1 - 1][p2 - 1] + 1) && (s1[p1 - 1] == s2[p2 - 1]))
+        if ((lcs[p1][p2] == lcs[p1 - 1][p2 - 1] + 1) && (s1[p1 - 1] == s2[p2 - 1]))
         {
             ans1.push_back(p1);
             ans2.push_back(p2);
@@ -123,7 +115,7 @@ static size_t solve(
         }
         else
         {
-            if (gcs[p1][p2] == gcs[p1 - 1][p2]) --p1;
+            if (lcs[p1][p2] == lcs[p1 - 1][p2]) --p1;
             else                                --p2;
         }
     }
@@ -131,5 +123,5 @@ static size_t solve(
     std::reverse(ans1.begin(), ans1.end());
     std::reverse(ans2.begin(), ans2.end());
 
-    return gcs[s1_len][s2_len];
+    return lcs[s1_len][s2_len];
 }
